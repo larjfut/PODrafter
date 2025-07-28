@@ -1,0 +1,60 @@
+# ---- General ----
+.DS_Store
+*.log
+*.tmp
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+*.manifest
+*.spec
+.build/
+.eggs/
+.pytest_cache/
+dist/
+build/
+.venv/
+.env
+
+# ---- Node / SvelteKit ----
+node_modules/
+.pnpm/
+npm-debug.log*
+yarn-debug.log*
+.pnpm-debug.log*
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# SvelteKit output
+/.svelte-kit
+/build
+
+# Vite / Static Hosts (optional)
+/.vercel
+/.netlify
+
+# ---- Front‑end Bundles ----
+*.map
+
+# ---- Environment & Secrets ----
+.env*
+*.key
+*.pem
+
+# ---- IDE / Editor ----
+.vscode/
+.idea/
+
+# ---- OS Files ----
+Thumbs.db
+Desktop.ini
+
+# ---- Generated Documents ----
+*.pdf
+*.zip
+*.doc*
