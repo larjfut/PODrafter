@@ -38,8 +38,10 @@ cd PODrafter
 # backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r backend/requirements.txt
+pytest
 # frontend
 cd frontend && npm install
+npm test -- --watchAll=false
 ```
 
 ### License
