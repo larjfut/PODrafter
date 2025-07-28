@@ -1,0 +1,116 @@
+<!--
+  Jinja2 template: Filing Guide for Protective Order
+  Provides step-by-step instructions for submitting the packet
+  Styled per Protectly P.O. Drafter design
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: 'Lora', serif;
+      margin: 1in;
+      color: #333;
+      line-height: 1.5;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 2em;
+    }
+    h1 {
+      font-size: 1.8em;
+      margin-bottom: 0.2em;
+      color: #5B3653;
+    }
+    h2 {
+      font-size: 1.4em;
+      margin-top: 1.5em;
+      color: #F16667;
+    }
+    ol {
+      margin-left: 1.2em;
+    }
+    li {
+      margin-bottom: 0.8em;
+    }
+    .checklist {
+      margin-top: 1em;
+      padding-left: 0;
+      list-style: none;
+    }
+    .checklist li {
+      margin-bottom: 0.5em;
+    }
+    .checklist li:before {
+      content: '\2713'; /* checkmark */
+      margin-right: 0.5em;
+      color: #D08B6B;
+    }
+    .qr {
+      margin-top: 2em;
+      text-align: center;
+    }
+    footer {
+      margin-top: 3em;
+      font-size: 0.85em;
+      color: #666;
+      border-top: 1px solid #ccc;
+      padding-top: 0.5em;
+    }
+    a {
+      color: #F16667;
+      text-decoration: none;
+    }
+  </style>
+  <title>Filing Guide</title>
+</head>
+<body>
+  <header>
+    <h1>How to File Your Protective Order Packet</h1>
+    <p>{{ county }} County District Clerk’s Office</p>
+  </header>
+
+  <section>
+    <h2>Step-by-Step Instructions</h2>
+    <ol>
+      <li>Print all documents: petition, firearm-surrender addendum, and this guide.</li>
+      <li>Sign the petition in blue ink where indicated.</li>
+      <li>Review the checklist below to ensure completion.</li>
+      <li>Place documents in the provided manila envelope.</li>
+      <li>Submit to the Clerk’s office at:</li>
+      <p>{{ county_clerk_address | replace('\n', '<br>') | safe }}</p>
+      <li>Request fee waiver and ask for file-stamping.</li>
+      <li>Obtain file-stamped copy and retain for your records.</li>
+      <li>Mail the stamped copy back to:</li>
+      <p>{{ petitioner_address | replace('\n','<br>') | safe }}</p>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Checklist</h2>
+    <ul class="checklist">
+      <li>Signed Protective Order Petition</li>
+      <li>Completed Firearm-Surrender Addendum</li>
+      <li>Self-Addressed Stamped Envelope</li>
+      <li>Fee Waiver Request Included</li>
+      <li>Copy for Your Records</li>
+    </ul>
+  </section>
+
+  <div class="qr">
+    {% if guide_qr_url %}
+      <img src="{{ guide_qr_url }}" alt="Filing Guide QR Code" style="width:1.5in;" />
+      <p>Scan to access online filing guide</p>
+    {% endif %}
+  </div>
+
+  <footer>
+    <p>
+      For assistance or emergency, call 911. For support services, dial 800-799-SAFE (7233) or visit
+      <a href="https://www.texasadvocacy.org">www.texasadvocacy.org</a>.
+    </p>
+  </footer>
+</body>
+</html>

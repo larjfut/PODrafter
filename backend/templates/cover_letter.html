@@ -1,0 +1,106 @@
+<!--
+  Jinja2 template: Cover Letter for Protective Order Filing Packet
+  Based on scaffold and styling guidelines
+  References: protective-order-draft-bot/backend/templates/cover_letter.html
+              Build Plan notes (placeholders & QR codes)
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: 'Lora', serif;
+      margin: 1in;
+      color: #333;
+      line-height: 1.4;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 1.5em;
+    }
+    h1 {
+      font-size: 1.6em;
+      margin: 0;
+    }
+    .metadata {
+      margin-top: 0.5em;
+    }
+    .clerk-info {
+      margin-top: 1.5em;
+    }
+    .signature {
+      margin-top: 2.5em;
+    }
+    footer {
+      margin-top: 3em;
+      font-size: 0.85em;
+      color: #666;
+      border-top: 1px solid #ccc;
+      padding-top: 0.5em;
+    }
+    .qr {
+      margin-top: 1em;
+      text-align: center;
+    }
+  </style>
+  <title>Cover Letter</title>
+</head>
+<body>
+  <header>
+    <h1>Protective Order Filing Packet</h1>
+    <p>{{ county }} County District Clerk’s Office</p>
+  </header>
+
+  <p>{{ today | date('%B %d, %Y') }}</p>
+  <div class="metadata">
+    <p>Case No.: ____________&#9;Hearing Date: ____________</p>
+    {% if petitioner_phone or petitioner_email %}
+    <p>
+      Petitioner Contact:
+      {% if petitioner_phone %}{{ petitioner_phone }}{% endif %}
+      {% if petitioner_phone and petitioner_email %} | {% endif %}
+      {% if petitioner_email %}{{ petitioner_email }}{% endif %}
+    </p>
+    {% endif %}
+  </div>
+
+  <div class="clerk-info">
+    <p>{{ county_clerk_address | replace('\n', '<br>') | safe }}</p>
+  </div>
+
+  <p>Re: <strong>{{ petitioner_full_name }}</strong> v. <strong>{{ respondent_full_name }}</strong></p>
+
+  <p>Dear Clerk,</p>
+
+  <p>
+    Enclosed please find the completed Protective Order petition and firearm-surrender addendum
+    pursuant to Texas Family Code § 85.041. The petitioner respectfully requests the Court to file
+    these documents under the statutory fee waiver.
+  </p>
+
+  <p>
+    Please file-stamp the original petition and return it using the enclosed self-addressed stamped envelope.
+  </p>
+
+  <div class="signature">
+    <p>Sincerely,</p>
+    <p>{{ petitioner_full_name }}</p>
+  </div>
+
+  <div class="qr">
+    {% if resume_qr_url %}
+      <img src="{{ resume_qr_url }}" alt="Resume Draft QR Code" style="width:1.5in;" />
+      <p>Scan to resume your draft</p>
+    {% endif %}
+  </div>
+
+  <footer>
+    <p>
+      If you need help or safety planning, call 800‑799‑SAFE (7233) or visit
+      <a href="https://www.texasadvocacy.org">www.texasadvocacy.org</a>.
+    </p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Protective Order Petition",
+  "type": "object",
+  "properties": {
+    "county": {
+      "type": "string",
+      "enum": ["Harris", "Dallas", "Travis", "General"]
+    },
+    "case_no": {
+      "type": "string",
+      "description": "Court-assigned case number"
+    },
+    "hearing_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Scheduled hearing date (YYYY-MM-DD)"
+    },
+    "petitioner_full_name": {
+      "type": "string",
+      "description": "Full name of the petitioner"
+    },
+    "petitioner_address": {
+      "type": "string",
+      "description": "Mailing address of the petitioner"
+    },
+    "petitioner_phone": {
+      "type": "string",
+      "description": "Contact phone number for the petitioner"
+    },
+    "petitioner_email": {
+      "type": "string",
+      "format": "email",
+      "description": "Contact email for the petitioner"
+    },
+    "respondent_full_name": {
+      "type": "string",
+      "description": "Full name of the respondent"
+    },
+    "firearm_surrender": {
+      "type": "boolean",
+      "description": "Whether a firearm-surrender addendum is included"
+    }
+  },
+  "required": [
+    "county",
+    "petitioner_full_name",
+    "respondent_full_name"
+  ],
+  "additionalProperties": false
+}
