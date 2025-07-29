@@ -7,6 +7,9 @@ AcroForm templates before being returned as a ZIP file.
 
 from __future__ import annotations
 
+import openai
+from pydantic import BaseModel
+
 import io
 import json
 import os
@@ -19,15 +22,22 @@ from fastapi.responses import StreamingResponse
 from jsonschema import ValidationError, validate
 from PyPDF2 import PdfReader, PdfWriter
 
+# Base paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = BASE_DIR / "schema" / "petition.schema.json"
 FORMS_DIR = BASE_DIR / "forms" / "standard"
 
+# Load OpenAI API key
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+# Load JSON schema
 with open(SCHEMA_PATH) as f:
     PETITION_SCHEMA = json.load(f)
 
+# CORS config
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
 
+# FastAPI app
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -35,7 +45,6 @@ app.add_middleware(
     allow_methods=["POST", "GET"],
     allow_headers=["*"],
 )
-
 
 @app.get("/health")
 def health() -> dict[str, str]:
@@ -82,3 +91,20 @@ async def generate_pdf(data: dict) -> StreamingResponse:
         media_type="application/zip",
         headers={"Content-Disposition": "attachment; filename=po_packet.zip"},
     )
+
+
+# ✅ Add your OpenAI chat endpoint below
+class ChatRequest(BaseModel):
+    messages: list
+
+@app.post("/api/chat")
+async def chat(request: ChatRequest):
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4o",
+            messages=request.messages,
+            temperature=0.7
+        )
+        return response['choices'][0]['message']
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
