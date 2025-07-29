@@ -19,9 +19,10 @@
     const userMessage = input;
     input = '';
 
-    // 3️⃣ Call your Fly.io backend
+    // 3️⃣ Call your backend
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://podrafter.fly.dev'
     try {
-      const res = await fetch('https://podrafter.fly.dev/api/chat', {
+      const res = await fetch(`${baseUrl}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
