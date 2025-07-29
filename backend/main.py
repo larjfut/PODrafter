@@ -100,11 +100,11 @@ class ChatRequest(BaseModel):
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
     try:
-        response = openai.ChatCompletion.create(
+        response = await openai.ChatCompletion.acreate(
             model="gpt-4o",
             messages=request.messages,
-            temperature=0.7
+            temperature=0.7,
         )
-        return response['choices'][0]['message']
+        return response["choices"][0]["message"]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
