@@ -47,9 +47,18 @@ npm test -- --watchAll=false
 npm run dev
 ```
 
+### Environment Variables
+
+Copy `.env.example` to `.env` and set these keys:
+
+| Name | Purpose | Default |
+|------|---------|---------|
+| `OPENAI_API_KEY` | OpenAI token for GPT requests | – |
+| `ALLOWED_ORIGINS` | comma‑separated list of allowed CORS origins | `http://localhost:5173` |
+
 ### Installing Test Dependencies
 
-Install Python packages for the micro‑service and Node packages for the Next.js front‑end before running tests.
+Install Python packages for the micro‑service and Node packages for the SvelteKit front‑end before running tests.
 
 ```bash
 # Python packages
