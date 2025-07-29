@@ -39,9 +39,12 @@ cd PODrafter
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 pytest
+# start the server (requires OPENAI_API_KEY)
+uvicorn backend.main:app --reload
 # frontend
 cd frontend && npm install
 npm test -- --watchAll=false
+npm run dev
 ```
 
 ### Installing Test Dependencies
