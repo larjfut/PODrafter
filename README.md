@@ -44,6 +44,18 @@ cd frontend && npm install
 npm test -- --watchAll=false
 ```
 
+### Installing Test Dependencies
+
+Install Python packages for the micro‑service and Node packages for the Next.js front‑end before running tests.
+
+```bash
+# Python packages
+pip install -r requirements.txt
+
+# Node packages
+cd frontend && npm install
+```
+
 ### License
 
 MIT – see `LICENSE.md`.
