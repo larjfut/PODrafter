@@ -1,0 +1,28 @@
+# flyctl launch added from .gitignore
+# General
+**\.DS_Store
+**\*.log
+**\*.tmp
+
+# Python
+**\__pycache__
+**\*.py[cod]
+**\.venv
+**\.env
+
+# Node / SvelteKit
+**\node_modules
+**\.svelte-kit
+**\build
+**\pnpm-lock.yaml
+**\package-lock.json
+
+# Secrets
+**\.env*
+**\*.pem
+**\*.key
+
+# IDE
+**\.vscode
+**\.idea
+fly.toml
