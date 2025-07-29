@@ -17,3 +17,19 @@ def test_pdf_generation():
     resp = client.post('/pdf', json=data)
     assert resp.status_code == 200
     assert resp.headers['content-type'] == 'application/zip'
+
+def test_chat_endpoint(monkeypatch):
+    async def fake_acreate(*args, **kwargs):
+        return {"choices": [{"message": {"role": "assistant", "content": "hi"}}]}
+
+    monkeypatch.setattr(
+        "backend.main.openai.ChatCompletion.acreate",
+        fake_acreate,
+    )
+
+    resp = client.post(
+        "/api/chat",
+        json={"messages": [{"role": "user", "content": "hello"}]},
+    )
+    assert resp.status_code == 200
+    assert resp.json() == {"role": "assistant", "content": "hi"}
