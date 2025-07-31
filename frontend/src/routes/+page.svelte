@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
 
   interface Message {
     role: 'user' | 'bot';
@@ -16,7 +15,6 @@
     messages = [...messages, { role: 'user', content: input }];
 
     // 2️⃣ Capture and clear input
-    const userMessage = input;
     input = '';
 
     // 3️⃣ Call your backend
