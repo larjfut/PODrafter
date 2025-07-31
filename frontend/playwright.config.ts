@@ -5,7 +5,7 @@ export default defineConfig({
     command: 'npm run dev',
     port: 5173,
     timeout: 120 * 1000,
-    reuseExistingServer: true
+    reuseExistingServer: true,
   },
-  testDir: 'tests'
+  testDir: 'tests',
 })
