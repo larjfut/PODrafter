@@ -27,9 +27,7 @@ def test_chat_endpoint(monkeypatch):
         fake_acreate,
     )
 
-    resp = client.post(
-        "/api/chat",
-        json={"messages": [{"role": "user", "content": "hello"}]},
-    )
+    messages = [{"role": "user", "content": "hello"}]
+    resp = client.post("/api/chat", json={"messages": messages})
     assert resp.status_code == 200
     assert resp.json() == {"role": "assistant", "content": "hi"}

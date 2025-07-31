@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import openai
 from pydantic import BaseModel
+from typing import Literal
 
 import io
 import json
@@ -94,8 +95,14 @@ async def generate_pdf(data: dict) -> StreamingResponse:
 
 
 # ✅ Add your OpenAI chat endpoint below
+
+class Message(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
 class ChatRequest(BaseModel):
-    messages: list
+    messages: list[Message]
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
