@@ -20,7 +20,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from jsonschema import ValidationError, validate
+from jsonschema import ValidationError, validate, FormatChecker
 from PyPDF2 import PdfReader, PdfWriter
 
 # Base paths
@@ -60,7 +60,7 @@ async def generate_pdf(data: dict) -> StreamingResponse:
         raise HTTPException(status_code=400, detail="Invalid request body")
 
     try:
-        validate(instance=data, schema=PETITION_SCHEMA)
+        validate(instance=data, schema=PETITION_SCHEMA, format_checker=FormatChecker())
     except ValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
