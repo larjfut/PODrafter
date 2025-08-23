@@ -104,9 +104,29 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 # OpenAI client
 client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Load JSON schema
-with open(SCHEMA_PATH) as f:
-    PETITION_SCHEMA = json.load(f)
+# Load JSON schema with error handling
+def load_schema() -> dict:
+  try:
+    with open(SCHEMA_PATH) as f:
+      return json.load(f)
+  except FileNotFoundError as exc:
+    msg = f"Schema file not found: {SCHEMA_PATH}"
+    logger.error(msg)
+    raise RuntimeError(msg) from exc
+  except json.JSONDecodeError as exc:
+    msg = f"Invalid JSON schema: {exc}"
+    logger.error(msg)
+    raise RuntimeError(msg) from exc
+
+
+def reload_schema() -> None:
+  global PETITION_SCHEMA
+  PETITION_SCHEMA = load_schema()
+
+
+PETITION_SCHEMA: dict = {}
+reload_schema()
+
 
 # CORS config
 allowed_origins = [
@@ -124,6 +144,12 @@ app.add_middleware(
     allow_methods=["POST", "GET"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def startup_event() -> None:
+  """Reload schema at startup for hot reloads."""
+  reload_schema()
 
 @app.get("/health")
 def health() -> dict[str, str]:
