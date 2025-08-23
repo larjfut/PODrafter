@@ -55,7 +55,7 @@ Copy `.env.example` to `.env` and set these keys:
 |------|---------|---------|
 | `OPENAI_API_KEY` | OpenAI token for GPT requests | – |
 | `ALLOWED_ORIGINS` | comma‑separated list of allowed CORS origins | `http://localhost:5173` |
-| `VITE_API_BASE_URL` | Base URL for the backend API | `http://localhost:8080` |
+| `VITE_API_BASE_URL` | Base path for the backend API | `/api` |
 
 ### Installing Test Dependencies
 
