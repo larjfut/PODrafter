@@ -5,17 +5,43 @@
     content: string;
   }
 
-  let messages: Message[] = [];
-  let input = '';
+  let messages: Message[] = []
+  let input = ''
+  let error = ''
+
+  const MAX_LENGTH = 200
+  const ALLOWED_CHARS = /^[a-zA-Z0-9 .,!?"'-]+$/
+
+  function sanitize(str: string) {
+    if (typeof window !== 'undefined' && (window as any).DOMPurify) {
+      return (window as any).DOMPurify.sanitize(str)
+    }
+    const doc = new DOMParser().parseFromString(str, 'text/html')
+    return doc.body.textContent || ''
+  }
 
   async function send() {
-    if (input.trim().length === 0) return;
+    error = ''
+    const trimmed = input.trim()
+    if (trimmed.length === 0) return
+
+    if (trimmed.length > MAX_LENGTH) {
+      error = `Message must be ${MAX_LENGTH} characters or fewer`
+      return
+    }
+
+    if (!ALLOWED_CHARS.test(trimmed)) {
+      error = 'Message contains invalid characters'
+      return
+    }
+
+    const sanitized = sanitize(trimmed)
 
     // 1️⃣ Append user message
-    messages = [...messages, { role: 'user', content: input }];
+    messages = [...messages, { role: 'user', content: sanitized }]
 
     // 2️⃣ Capture and clear input
-    input = '';
+    input = ''
 
     // 3️⃣ Call your backend
     const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api'
@@ -30,25 +56,25 @@
             content: msg.content
           }))
         })
-      });
+      })
 
       if (!res.ok) {
-        throw new Error(`Error ${res.status}: ${await res.text()}`);
+        throw new Error(`Error ${res.status}: ${await res.text()}`)
       }
 
-      const assistantMsg = await res.json();
+      const assistantMsg = await res.json()
       // 4️⃣ Append the assistant’s reply
       messages = [
         ...messages,
         { role: 'bot', content: assistantMsg.content }
-      ];
+      ]
 
     } catch (err) {
-      console.error(err);
+      console.error(err)
       messages = [
         ...messages,
         { role: 'bot', content: '🚨 Sorry, something went wrong.' }
-      ];
+      ]
     }
   }
 </script>
@@ -82,4 +108,7 @@
       Send
     </button>
   </form>
+  {#if error}
+    <p class="text-red-500 mt-2">{error}</p>
+  {/if}
 </main>
