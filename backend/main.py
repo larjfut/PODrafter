@@ -54,25 +54,52 @@ logger = logging.getLogger(__name__)
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 redis_client = redis.from_url(REDIS_URL, decode_responses=True)
 
+fallback_store: dict[str, int] = {}
+fallback_last_reset = time.time()
+fallback_active = False
+
 def sanitize_string(value: str) -> str:
     cleaned = html.escape(value)
     return re.sub(r"[\x00-\x1f\x7f-\x9f]", "", cleaned)
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        ip = request.client.host if request.client else "anon"
-        now = time.time()
-        key = f"ratelimit:{ip}"
-        try:
-            await redis_client.zremrangebyscore(key, 0, now - RATE_WINDOW)
-            count = await redis_client.zcard(key)
-            if count >= RATE_LIMIT:
-                return JSONResponse(status_code=429, content={"detail": "Too many requests"})
-            await redis_client.zadd(key, {str(now): now})
-            await redis_client.expire(key, RATE_WINDOW)
-        except Exception as exc:
-            logger.warning("Rate limiter store error: %s", exc)
+  async def dispatch(self, request: Request, call_next):
+    ip = request.client.host if request.client else "anon"
+    now = time.time()
+    key = f"ratelimit:{ip}"
+    global fallback_store, fallback_last_reset, fallback_active
+    if fallback_active:
+      try:
+        await redis_client.ping()
+        fallback_active = False
+        fallback_store.clear()
+        logger.info("Redis connection restored; using Redis store")
+      except Exception:
+        pass
+    if not fallback_active:
+      try:
+        await redis_client.zremrangebyscore(key, 0, now - RATE_WINDOW)
+        count = await redis_client.zcard(key)
+        if count >= RATE_LIMIT:
+          return JSONResponse(status_code=429, content={"detail": "Too many requests"})
+        await redis_client.zadd(key, {str(now): now})
+        await redis_client.expire(key, RATE_WINDOW)
         return await call_next(request)
+      except Exception as exc:
+        fallback_active = True
+        fallback_store.clear()
+        fallback_last_reset = now
+        logger.warning(
+          "Rate limiter store error: %s; using in-memory fallback", exc
+        )
+    if now - fallback_last_reset >= RATE_WINDOW:
+      fallback_store.clear()
+      fallback_last_reset = now
+    count = fallback_store.get(ip, 0)
+    if count >= RATE_LIMIT:
+      return JSONResponse(status_code=429, content={"detail": "Too many requests"})
+    fallback_store[ip] = count + 1
+    return await call_next(request)
 
 # OpenAI client
 client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
