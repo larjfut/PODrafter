@@ -7,21 +7,25 @@ AcroForm templates before being returned as a ZIP file.
 
 from __future__ import annotations
 
-from openai import AsyncOpenAI
-from pydantic import BaseModel
-from typing import Literal
-
+import html
 import io
 import json
+import logging
 import os
+import re
+import time
 import zipfile
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from jsonschema import ValidationError, validate, FormatChecker
+from openai import AsyncOpenAI
+from pydantic import BaseModel
 from PyPDF2 import PdfReader, PdfWriter
+from starlette.middleware.base import BaseHTTPMiddleware
+from typing import Literal
 
 # Base paths
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -39,6 +43,30 @@ FIELD_MAP = {
     "respondent_full_name": "RespondentName",
 }
 
+# Limits and sanitization
+MAX_REQUEST_SIZE = 10_000  # bytes
+RATE_LIMIT = 100
+RATE_WINDOW = 60  # seconds
+
+logger = logging.getLogger(__name__)
+
+def sanitize_string(value: str) -> str:
+    cleaned = html.escape(value)
+    return re.sub(r"[\x00-\x1f\x7f-\x9f]", "", cleaned)
+
+_requests: dict[str, list[float]] = {}
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        ip = request.client.host if request.client else "anon"
+        now = time.time()
+        window = [t for t in _requests.get(ip, []) if now - t < RATE_WINDOW]
+        if len(window) >= RATE_LIMIT:
+            return JSONResponse(status_code=429, content={"detail": "Too many requests"})
+        window.append(now)
+        _requests[ip] = window
+        return await call_next(request)
+
 # OpenAI client
 client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -51,6 +79,7 @@ allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",
 
 # FastAPI app
 app = FastAPI()
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -69,6 +98,9 @@ async def generate_pdf(data: dict) -> StreamingResponse:
     """Generate PDF packet from petition data."""
     if not isinstance(data, dict):
         raise HTTPException(status_code=400, detail="Invalid request body")
+
+    if len(json.dumps(data).encode("utf-8")) > MAX_REQUEST_SIZE:
+        raise HTTPException(status_code=413, detail="Request too large")
 
     try:
         validate(instance=data, schema=PETITION_SCHEMA, format_checker=FormatChecker())
@@ -92,7 +124,7 @@ async def generate_pdf(data: dict) -> StreamingResponse:
     form_values = {}
     for key, field in FIELD_MAP.items():
         try:
-            form_values[field] = data[key]
+            form_values[field] = sanitize_string(str(data[key]))
         except KeyError:
             continue
 
@@ -133,12 +165,22 @@ class ChatRequest(BaseModel):
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
+    payload = request.model_dump()
+    if len(json.dumps(payload).encode("utf-8")) > MAX_REQUEST_SIZE:
+        raise HTTPException(status_code=413, detail="Request too large")
+
+    messages = [
+        {"role": msg.role, "content": sanitize_string(msg.content)}
+        for msg in request.messages
+    ]
+
     try:
         response = await client.chat.completions.create(
             model="gpt-4o",
-            messages=request.messages,
+            messages=messages,
             temperature=0.7,
         )
         return response.choices[0].message.model_dump()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("chat endpoint failed", exc_info=e)
+        raise HTTPException(status_code=500, detail="Internal server error")

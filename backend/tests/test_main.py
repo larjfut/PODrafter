@@ -12,7 +12,7 @@ os.environ["OPENAI_API_KEY"] = "test"
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from backend.main import app
+from backend.main import MAX_REQUEST_SIZE, app
 
 
 def test_health():
@@ -163,7 +163,20 @@ def test_chat_openai_failure(monkeypatch):
     ) as client:
         resp = await client.post("/api/chat", json={"messages": messages})
     assert resp.status_code == 500
-    assert "boom" in resp.json()["detail"]
+    assert resp.json()["detail"] == "Internal server error"
+
+  asyncio.run(_run())
+
+
+def test_chat_request_too_large():
+  async def _run():
+    big_content = "a" * (MAX_REQUEST_SIZE + 1)
+    messages = [{"role": "user", "content": big_content}]
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        resp = await client.post("/api/chat", json={"messages": messages})
+    assert resp.status_code == 413
 
   asyncio.run(_run())
 
