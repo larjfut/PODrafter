@@ -23,16 +23,41 @@ def test_pdf_generation(monkeypatch):
     async def _run():
         data = {
             "county": "Harris",
+            "case_no": "123",
+            "hearing_date": "2024-01-01",
             "petitioner_full_name": "Jane Doe",
+            "petitioner_address": "1 Main St",
+            "petitioner_phone": "555-0000",
+            "petitioner_email": "jane@example.com",
             "respondent_full_name": "John Doe",
         }
 
+        class DummyPage:
+            pass
+
         class DummyReader:
-            pages = []
+            def __init__(self, *args, **kwargs):
+                self.pages = [DummyPage()]
+
+        captured = {}
+
+        class DummyWriter:
+            def __init__(self, *args, **kwargs):
+                self.pages = []
+
+            def add_page(self, page):
+                self.pages.append(page)
+
+            def update_page_form_field_values(self, page, data):
+                captured.update(data)
+
+            def write(self, stream):
+                pass
 
         monkeypatch.setattr(
             "backend.main.PdfReader", lambda *args, **kwargs: DummyReader()
         )
+        monkeypatch.setattr("backend.main.PdfWriter", DummyWriter)
 
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://testserver"
@@ -40,6 +65,15 @@ def test_pdf_generation(monkeypatch):
             resp = await client.post("/pdf", json=data)
         assert resp.status_code == 200
         assert resp.headers["content-type"] == "application/zip"
+        assert captured == {
+            "CaseNumber": "123",
+            "HearingDate": "2024-01-01",
+            "PetitionerName": "Jane Doe",
+            "PetitionerAddress": "1 Main St",
+            "PetitionerPhone": "555-0000",
+            "PetitionerEmail": "jane@example.com",
+            "RespondentName": "John Doe",
+        }
 
     asyncio.run(_run())
 

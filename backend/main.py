@@ -28,6 +28,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = BASE_DIR / "schema" / "petition.schema.json"
 FORMS_DIR = BASE_DIR / "forms" / "standard"
 
+# Mapping of petition data keys to PDF form fields
+FIELD_MAP = {
+    "case_no": "CaseNumber",
+    "hearing_date": "HearingDate",
+    "petitioner_full_name": "PetitionerName",
+    "petitioner_address": "PetitionerAddress",
+    "petitioner_phone": "PetitionerPhone",
+    "petitioner_email": "PetitionerEmail",
+    "respondent_full_name": "RespondentName",
+}
+
 # OpenAI client
 client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -78,8 +89,24 @@ async def generate_pdf(data: dict) -> StreamingResponse:
     for page in reader.pages:
         writer.add_page(page)
 
+    form_values = {}
+    for key, field in FIELD_MAP.items():
+        try:
+            form_values[field] = data[key]
+        except KeyError:
+            continue
+
+    try:
+        for page in writer.pages:
+            writer.update_page_form_field_values(page, form_values)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to populate form fields: {exc}") from exc
+
     pdf_bytes = io.BytesIO()
-    writer.write(pdf_bytes)
+    try:
+        writer.write(pdf_bytes)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to write PDF: {exc}") from exc
     pdf_bytes.seek(0)
 
     zip_bytes = io.BytesIO()
