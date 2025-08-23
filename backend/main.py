@@ -15,18 +15,21 @@ import io
 import json
 import os
 import zipfile
+from datetime import date
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from jsonschema import ValidationError, validate, FormatChecker
+from jinja2 import Environment, FileSystemLoader
 from PyPDF2 import PdfReader, PdfWriter
 
 # Base paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = BASE_DIR / "schema" / "petition.schema.json"
 FORMS_DIR = BASE_DIR / "forms" / "standard"
+TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 
 # Mapping of petition data keys to PDF form fields
 FIELD_MAP = {
@@ -41,6 +44,10 @@ FIELD_MAP = {
 
 # OpenAI client
 client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# Jinja2 environment
+template_env = Environment(loader=FileSystemLoader(TEMPLATES_DIR))
+template_env.filters["date"] = lambda value, fmt="%B %d, %Y": value.strftime(fmt)
 
 # Load JSON schema
 with open(SCHEMA_PATH) as f:
@@ -109,9 +116,14 @@ async def generate_pdf(data: dict) -> StreamingResponse:
         raise HTTPException(status_code=500, detail=f"Failed to write PDF: {exc}") from exc
     pdf_bytes.seek(0)
 
+    template_data = {**data, "today": date.today()}
+
     zip_bytes = io.BytesIO()
     with zipfile.ZipFile(zip_bytes, "w") as zf:
         zf.writestr("petition.pdf", pdf_bytes.getvalue())
+        for name in ("cover_letter.html", "filing_guide.html"):
+            html = template_env.get_template(name).render(template_data)
+            zf.writestr(name, html)
     zip_bytes.seek(0)
 
     return StreamingResponse(
