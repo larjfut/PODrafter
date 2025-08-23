@@ -60,6 +60,7 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 SENSITIVE_PATHS = {"/api/chat", "/pdf"}
 DISALLOWED_PATTERNS = [re.compile(p, re.IGNORECASE) for p in ["<script", "javascript:", "data:"]]
 
+# SHA256 checksums for standard form templates
 TEMPLATE_CHECKSUMS = {
   "dallas.pdf": "fd8584654ccf09fa6b9628fd8fd9859cc6cdc18e566b9a4b3db1f136f821b2c8",
   "harris.pdf": "fd8584654ccf09fa6b9628fd8fd9859cc6cdc18e566b9a4b3db1f136f821b2c8",
