@@ -1,7 +1,7 @@
 <script lang="ts">
 
   interface Message {
-    role: 'user' | 'bot'
+    role: 'user' | 'assistant'
     content: string
   }
 
@@ -23,13 +23,7 @@
       const res = await fetch(`${baseUrl}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          // transform to OpenAI roles
-          messages: messages.map(msg => ({
-            role: msg.role === 'user' ? 'user' : 'assistant',
-            content: msg.content
-          }))
-        })
+        body: JSON.stringify({ messages })
       })
 
       if (!res.ok) {
@@ -47,23 +41,23 @@
       // 4️⃣ Append the assistant’s reply
       messages = [
         ...messages,
-        { role: 'bot', content: assistantMsg.content }
+        { role: 'assistant', content: assistantMsg.content }
       ]
 
     } catch (err) {
       console.error('Chat request failed', err)
-      let botMessage = '🚨 Sorry, something went wrong.'
+      let assistantMessage = '🚨 Sorry, something went wrong.'
       if (err instanceof TypeError) {
-        botMessage =
+        assistantMessage =
           '📡 Network issue. Please check your connection and try again.'
       } else if (err.message?.startsWith('Client error')) {
-        botMessage =
+        assistantMessage =
           '🙋 There seems to be a problem with your request. Please adjust it and retry.'
       } else if (err.message?.startsWith('Server error')) {
-        botMessage =
+        assistantMessage =
           '🛠️ The server is having trouble. Please try again later.'
       }
-      messages = [...messages, { role: 'bot', content: botMessage }]
+      messages = [...messages, { role: 'assistant', content: assistantMessage }]
     }
   }
 </script>
@@ -75,12 +69,12 @@
       <div
         class="my-2"
         class:text-right={msg.role === 'user'}
-        class:text-left={msg.role === 'bot'}
+        class:text-left={msg.role === 'assistant'}
       >
         <span
           class="p-2 rounded inline-block"
           class:bg-blue-200={msg.role === 'user'}
-          class:bg-gray-200={msg.role === 'bot'}
+          class:bg-gray-200={msg.role === 'assistant'}
         >
           {msg.content}
         </span>
