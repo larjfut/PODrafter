@@ -8,7 +8,17 @@ from PyPDF2 import PdfReader
 import sys
 from pathlib import Path
 import pytest
-import fakeredis.aioredis as fakeredis
+import types
+
+# stub redis module for tests
+redis_stub = types.ModuleType("redis")
+redis_asyncio_stub = types.ModuleType("redis.asyncio")
+def from_url(*args, **kwargs):
+  return None
+redis_asyncio_stub.from_url = from_url
+redis_stub.asyncio = redis_asyncio_stub
+sys.modules["redis"] = redis_stub
+sys.modules["redis.asyncio"] = redis_asyncio_stub
 
 os.environ["OPENAI_API_KEY"] = "test"
 
@@ -17,9 +27,23 @@ sys.path.append(str(Path(__file__).resolve().parents[2]))
 from backend.main import MAX_REQUEST_SIZE, app
 
 
+class DummyRedis:
+  async def zremrangebyscore(self, *args, **kwargs):
+    pass
+
+  async def zcard(self, *args, **kwargs):
+    return 0
+
+  async def zadd(self, *args, **kwargs):
+    pass
+
+  async def expire(self, *args, **kwargs):
+    pass
+
+
 @pytest.fixture(autouse=True)
 def _fake_redis(monkeypatch):
-  monkeypatch.setattr("backend.main.redis_client", fakeredis.FakeRedis())
+  monkeypatch.setattr("backend.main.redis_client", DummyRedis())
 
 
 def test_health():
