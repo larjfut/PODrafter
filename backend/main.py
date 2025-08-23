@@ -46,6 +46,7 @@ FIELD_MAP = {
 
 # Limits and sanitization
 MAX_REQUEST_SIZE = 10_000  # bytes
+MAX_FIELD_LENGTH = 1_000  # characters per field
 RATE_LIMIT = 100
 RATE_WINDOW = 60  # seconds
 
@@ -54,28 +55,34 @@ logger = logging.getLogger(__name__)
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 redis_client = redis.from_url(REDIS_URL, decode_responses=True)
 
-fallback_store: dict[str, int] = {}
-fallback_last_reset = time.time()
+# In-memory fallback for rate limiting when Redis is unavailable. Mapping of
+# IP -> {timestamp_id: request_time}
+fallback_store: dict[str, dict[str, float]] = {}
 fallback_active = False
 
 def sanitize_string(value: str) -> str:
-    cleaned = html.escape(value)
-    return re.sub(r"[\x00-\x1f\x7f-\x9f]", "", cleaned)
+  """Basic XSS protection and length enforcement for user-provided strings."""
+  cleaned = html.escape(value, quote=True)
+  cleaned = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", cleaned)
+  cleaned = re.sub(r"(javascript:|data:)", "", cleaned, flags=re.IGNORECASE)
+  return cleaned.strip()[:MAX_FIELD_LENGTH]
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
   async def dispatch(self, request: Request, call_next):
     ip = request.client.host if request.client else "anon"
     now = time.time()
     key = f"ratelimit:{ip}"
-    global fallback_store, fallback_last_reset, fallback_active
+    global fallback_store, fallback_active
+
     if fallback_active:
       try:
         await redis_client.ping()
         fallback_active = False
         fallback_store.clear()
         logger.info("Redis connection restored; using Redis store")
-      except Exception:
-        pass
+      except Exception as exc:
+        logger.debug("Redis ping failed during fallback: %s", exc)
+
     if not fallback_active:
       try:
         await redis_client.zremrangebyscore(key, 0, now - RATE_WINDOW)
@@ -84,25 +91,71 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
           return JSONResponse(status_code=429, content={"detail": "Too many requests"})
         await redis_client.zadd(key, {str(now): now})
         await redis_client.expire(key, RATE_WINDOW)
-        return await call_next(request)
+        response = await call_next(request)
+        response.headers["X-RateLimit-Store"] = "redis"
+        return response
       except Exception as exc:
         fallback_active = True
         fallback_store.clear()
-        fallback_last_reset = now
         logger.warning(
           "Rate limiter store error: %s; using in-memory fallback", exc
         )
-    if now - fallback_last_reset >= RATE_WINDOW:
-      fallback_store.clear()
-      fallback_last_reset = now
-    count = fallback_store.get(ip, 0)
-    if count >= RATE_LIMIT:
+
+    # Fallback in-memory rate limiting
+    window_start = now - RATE_WINDOW
+    timestamps = fallback_store.setdefault(ip, {})
+    for ts_key, ts in list(timestamps.items()):
+      if ts < window_start:
+        del timestamps[ts_key]
+    if len(timestamps) >= RATE_LIMIT:
       return JSONResponse(status_code=429, content={"detail": "Too many requests"})
-    fallback_store[ip] = count + 1
+    timestamps[str(now)] = now
+
+    # Cleanup expired entries for other IPs
+    for ip_key, times in list(fallback_store.items()):
+      for ts_key, ts in list(times.items()):
+        if ts < window_start:
+          del times[ts_key]
+      if not times:
+        del fallback_store[ip_key]
+
+    response = await call_next(request)
+    response.headers["X-RateLimit-Store"] = "memory"
+    return response
+
+
+class BodySizeLimitMiddleware(BaseHTTPMiddleware):
+  """Reject requests that declare a body larger than MAX_REQUEST_SIZE."""
+
+  async def dispatch(self, request: Request, call_next):
+    cl = request.headers.get("content-length")
+    if cl:
+      try:
+        if int(cl) > MAX_REQUEST_SIZE:
+          return JSONResponse(status_code=413, content={"detail": "Request too large"})
+      except ValueError:
+        return JSONResponse(status_code=400, content={"detail": "Invalid content length"})
     return await call_next(request)
 
 # OpenAI client
 client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# Environment validation
+async def validate_environment() -> None:
+  api_key = os.getenv("OPENAI_API_KEY")
+  if not api_key:
+    msg = "OPENAI_API_KEY is not set"
+    logger.error(msg)
+    raise RuntimeError(msg)
+  if api_key == "test":
+    logger.info("Using test API key; skipping OpenAI connectivity check")
+    return
+  try:
+    await client.models.list()
+  except Exception as exc:
+    msg = f"OpenAI connectivity check failed: {exc}"
+    logger.error(msg)
+    raise RuntimeError(msg) from exc
 
 # Load JSON schema with error handling
 def load_schema() -> dict:
@@ -138,23 +191,66 @@ allowed_origins = [
 # FastAPI app
 app = FastAPI()
 app.add_middleware(RateLimitMiddleware)
+app.add_middleware(BodySizeLimitMiddleware)
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_methods=["POST", "GET"],
-    allow_headers=["*"],
+  CORSMiddleware,
+  allow_origins=allowed_origins,
+  allow_methods=["POST", "GET"],
+  allow_headers=["*"],
 )
 
 
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+  ip = request.client.host if request.client else "anon"
+  start = time.time()
+  try:
+    response = await call_next(request)
+  except Exception as exc:
+    duration = (time.time() - start) * 1000
+    logger.exception(
+      "Error processing %s %s from %s in %.2fms",
+      request.method,
+      request.url.path,
+      ip,
+      duration,
+    )
+    raise
+  duration = (time.time() - start) * 1000
+  logger.info(
+    "%s %s from %s -> %s in %.2fms",
+    request.method,
+    request.url.path,
+    ip,
+    response.status_code,
+    duration,
+  )
+  return response
+
+
 @app.on_event("startup")
-def startup_event() -> None:
-  """Reload schema at startup for hot reloads."""
+async def startup_event() -> None:
+  """Reload schema and validate environment at startup."""
   reload_schema()
+  await validate_environment()
 
 @app.get("/health")
 def health() -> dict[str, str]:
     """Simple health check endpoint."""
     return {"status": "ok"}
+
+
+@app.get("/redis/health")
+async def redis_health():
+  try:
+    await redis_client.ping()
+    return {"status": "ok"}
+  except Exception as exc:
+    logger.warning("Redis health check failed: %s", exc)
+    return JSONResponse(
+      status_code=503,
+      content={"status": "unavailable", "detail": "Redis unavailable"},
+    )
 
 
 @app.post("/pdf")
@@ -166,10 +262,14 @@ async def generate_pdf(data: dict) -> StreamingResponse:
     if len(json.dumps(data).encode("utf-8")) > MAX_REQUEST_SIZE:
         raise HTTPException(status_code=413, detail="Request too large")
 
+    if any(isinstance(v, str) and len(v) > MAX_FIELD_LENGTH for v in data.values()):
+        raise HTTPException(status_code=413, detail="Field too large")
+
     try:
         validate(instance=data, schema=PETITION_SCHEMA, format_checker=FormatChecker())
     except ValidationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        logger.warning("Petition validation failed: %s", exc)
+        raise HTTPException(status_code=400, detail="Invalid petition data") from exc
 
     county = data.get("county", "General")
     logger.info("PDF requested for county %s", county)
@@ -182,6 +282,7 @@ async def generate_pdf(data: dict) -> StreamingResponse:
     template_file = FORMS_DIR / template_map.get(county, "tx_general.pdf")
 
     if not template_file.exists():
+        logger.warning("Template not found for county %s", county)
         raise HTTPException(status_code=404, detail="Template not found")
 
     reader = PdfReader(str(template_file))
@@ -189,24 +290,20 @@ async def generate_pdf(data: dict) -> StreamingResponse:
     for page in reader.pages:
         writer.add_page(page)
 
-    form_values = {}
+    form_values: dict[str, str] = {}
     for key, field in FIELD_MAP.items():
-        try:
-            form_values[field] = sanitize_string(str(data[key]))
-        except KeyError:
-            continue
+        value = data.get(key)
+        if value is not None:
+            form_values[field] = sanitize_string(str(value))
 
     try:
         for page in writer.pages:
             writer.update_page_form_field_values(page, form_values)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to populate form fields: {exc}") from exc
-
-    pdf_bytes = io.BytesIO()
-    try:
+        pdf_bytes = io.BytesIO()
         writer.write(pdf_bytes)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to write PDF: {exc}") from exc
+        logger.exception("PDF generation failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to generate PDF") from exc
     pdf_bytes.seek(0)
 
     zip_bytes = io.BytesIO()
@@ -237,6 +334,10 @@ async def chat(request: ChatRequest):
     if len(json.dumps(payload).encode("utf-8")) > MAX_REQUEST_SIZE:
         raise HTTPException(status_code=413, detail="Request too large")
 
+    for msg in request.messages:
+        if len(msg.content) > MAX_FIELD_LENGTH:
+            raise HTTPException(status_code=413, detail="Field too large")
+
     messages = [
         {"role": msg.role, "content": sanitize_string(msg.content)}
         for msg in request.messages
@@ -251,4 +352,4 @@ async def chat(request: ChatRequest):
         return response.choices[0].message.model_dump()
     except Exception as e:
         logger.exception("chat endpoint failed", exc_info=e)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
