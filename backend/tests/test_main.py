@@ -7,12 +7,19 @@ from openai.resources.chat.completions import AsyncCompletions
 from PyPDF2 import PdfReader
 import sys
 from pathlib import Path
+import pytest
+import fakeredis.aioredis as fakeredis
 
 os.environ["OPENAI_API_KEY"] = "test"
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from backend.main import MAX_REQUEST_SIZE, app
+
+
+@pytest.fixture(autouse=True)
+def _fake_redis(monkeypatch):
+  monkeypatch.setattr("backend.main.redis_client", fakeredis.FakeRedis())
 
 
 def test_health():

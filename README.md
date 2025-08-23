@@ -38,9 +38,10 @@ cd PODrafter
 # backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+docker run -d -p 6379:6379 redis:7
 pytest
 # start the server (requires OPENAI_API_KEY)
-uvicorn backend.main:app --reload --port 8080
+REDIS_URL=redis://localhost:6379 uvicorn backend.main:app --reload --port 8080
 # frontend
 cd frontend && npm install
 npm test -- --watchAll=false
@@ -56,6 +57,7 @@ Copy `.env.example` to `.env` and set these keys:
 | `OPENAI_API_KEY` | OpenAI token for GPT requests | – |
 | `ALLOWED_ORIGINS` | comma‑separated list of allowed CORS origins | `http://localhost:5173` |
 | `VITE_API_BASE_URL` | Base path for the backend API | `/api` |
+| `REDIS_URL` | Redis connection string for rate limiting | `redis://localhost:6379/0` |
 
 ### Installing Test Dependencies
 

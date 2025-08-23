@@ -16,6 +16,7 @@ import re
 import time
 import zipfile
 from pathlib import Path
+import redis.asyncio as redis
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -50,21 +51,27 @@ RATE_WINDOW = 60  # seconds
 
 logger = logging.getLogger(__name__)
 
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+
 def sanitize_string(value: str) -> str:
     cleaned = html.escape(value)
     return re.sub(r"[\x00-\x1f\x7f-\x9f]", "", cleaned)
-
-_requests: dict[str, list[float]] = {}
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         ip = request.client.host if request.client else "anon"
         now = time.time()
-        window = [t for t in _requests.get(ip, []) if now - t < RATE_WINDOW]
-        if len(window) >= RATE_LIMIT:
-            return JSONResponse(status_code=429, content={"detail": "Too many requests"})
-        window.append(now)
-        _requests[ip] = window
+        key = f"ratelimit:{ip}"
+        try:
+            await redis_client.zremrangebyscore(key, 0, now - RATE_WINDOW)
+            count = await redis_client.zcard(key)
+            if count >= RATE_LIMIT:
+                return JSONResponse(status_code=429, content={"detail": "Too many requests"})
+            await redis_client.zadd(key, {str(now): now})
+            await redis_client.expire(key, RATE_WINDOW)
+        except Exception as exc:
+            logger.warning("Rate limiter store error: %s", exc)
         return await call_next(request)
 
 # OpenAI client
