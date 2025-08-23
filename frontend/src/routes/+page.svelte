@@ -1,21 +1,21 @@
 <script lang="ts">
 
   interface Message {
-    role: 'user' | 'bot';
-    content: string;
+    role: 'user' | 'bot'
+    content: string
   }
 
-  let messages: Message[] = [];
-  let input = '';
+  let messages: Message[] = []
+  let input = ''
 
   async function send() {
-    if (input.trim().length === 0) return;
+    if (input.trim().length === 0) return
 
     // 1️⃣ Append user message
-    messages = [...messages, { role: 'user', content: input }];
+    messages = [...messages, { role: 'user', content: input }]
 
     // 2️⃣ Capture and clear input
-    input = '';
+    input = ''
 
     // 3️⃣ Call your backend
     const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api'
@@ -30,25 +30,40 @@
             content: msg.content
           }))
         })
-      });
+      })
 
       if (!res.ok) {
-        throw new Error(`Error ${res.status}: ${await res.text()}`);
+        const text = await res.text()
+        if (res.status >= 400 && res.status < 500) {
+          throw new Error(`Client error ${res.status}: ${text}`)
+        } else if (res.status >= 500) {
+          throw new Error(`Server error ${res.status}: ${text}`)
+        } else {
+          throw new Error(`Unexpected status ${res.status}: ${text}`)
+        }
       }
 
-      const assistantMsg = await res.json();
+      const assistantMsg = await res.json()
       // 4️⃣ Append the assistant’s reply
       messages = [
         ...messages,
         { role: 'bot', content: assistantMsg.content }
-      ];
+      ]
 
     } catch (err) {
-      console.error(err);
-      messages = [
-        ...messages,
-        { role: 'bot', content: '🚨 Sorry, something went wrong.' }
-      ];
+      console.error('Chat request failed', err)
+      let botMessage = '🚨 Sorry, something went wrong.'
+      if (err instanceof TypeError) {
+        botMessage =
+          '📡 Network issue. Please check your connection and try again.'
+      } else if (err.message?.startsWith('Client error')) {
+        botMessage =
+          '🙋 There seems to be a problem with your request. Please adjust it and retry.'
+      } else if (err.message?.startsWith('Server error')) {
+        botMessage =
+          '🛠️ The server is having trouble. Please try again later.'
+      }
+      messages = [...messages, { role: 'bot', content: botMessage }]
     }
   }
 </script>
