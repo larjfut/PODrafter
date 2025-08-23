@@ -18,9 +18,9 @@
     input = '';
 
     // 3️⃣ Call your backend
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://podrafter.fly.dev'
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api'
     try {
-      const res = await fetch(`${baseUrl}/api/chat`, {
+      const res = await fetch(`${baseUrl}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
