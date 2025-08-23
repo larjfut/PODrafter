@@ -7,7 +7,7 @@ AcroForm templates before being returned as a ZIP file.
 
 from __future__ import annotations
 
-import openai
+from openai import AsyncOpenAI
 from pydantic import BaseModel
 from typing import Literal
 
@@ -28,8 +28,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = BASE_DIR / "schema" / "petition.schema.json"
 FORMS_DIR = BASE_DIR / "forms" / "standard"
 
-# Load OpenAI API key
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# OpenAI client
+client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Load JSON schema
 with open(SCHEMA_PATH) as f:
@@ -107,11 +107,11 @@ class ChatRequest(BaseModel):
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
     try:
-        response = await openai.ChatCompletion.acreate(
+        response = await client.chat.completions.create(
             model="gpt-4o",
             messages=request.messages,
             temperature=0.7,
         )
-        return response["choices"][0]["message"]
+        return response.choices[0].message.model_dump()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
