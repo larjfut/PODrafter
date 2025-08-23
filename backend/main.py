@@ -7,6 +7,7 @@ AcroForm templates before being returned as a ZIP file.
 
 from __future__ import annotations
 
+import hashlib
 import html
 import io
 import json
@@ -55,6 +56,17 @@ logger = logging.getLogger(__name__)
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 redis_client = redis.from_url(REDIS_URL, decode_responses=True)
 
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+SENSITIVE_PATHS = {"/api/chat", "/pdf"}
+DISALLOWED_PATTERNS = [re.compile(p, re.IGNORECASE) for p in ["<script", "javascript:", "data:"]]
+
+TEMPLATE_CHECKSUMS = {
+  "dallas.pdf": "fd8584654ccf09fa6b9628fd8fd9859cc6cdc18e566b9a4b3db1f136f821b2c8",
+  "harris.pdf": "fd8584654ccf09fa6b9628fd8fd9859cc6cdc18e566b9a4b3db1f136f821b2c8",
+  "travis.pdf": "fd8584654ccf09fa6b9628fd8fd9859cc6cdc18e566b9a4b3db1f136f821b2c8",
+  "tx_general.pdf": "fd8584654ccf09fa6b9628fd8fd9859cc6cdc18e566b9a4b3db1f136f821b2c8",
+}
+
 # In-memory fallback for rate limiting when Redis is unavailable. Mapping of
 # IP -> {timestamp_id: request_time}
 fallback_store: dict[str, dict[str, float]] = {}
@@ -66,6 +78,17 @@ def sanitize_string(value: str) -> str:
   cleaned = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", cleaned)
   cleaned = re.sub(r"(javascript:|data:)", "", cleaned, flags=re.IGNORECASE)
   return cleaned.strip()[:MAX_FIELD_LENGTH]
+
+
+def verify_template_integrity(path: Path) -> None:
+  expected = TEMPLATE_CHECKSUMS.get(path.name)
+  if not expected:
+    return
+  with open(path, "rb") as f:
+    actual = hashlib.sha256(f.read()).hexdigest()
+  if actual != expected:
+    logger.error("Template checksum mismatch for %s", path.name)
+    raise HTTPException(status_code=500, detail="Template integrity check failed")
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
   async def dispatch(self, request: Request, call_next):
@@ -148,6 +171,10 @@ async def validate_environment() -> None:
     logger.error(msg)
     raise RuntimeError(msg)
   if api_key == "test":
+    if ENVIRONMENT == "production":
+      msg = "Test API key not allowed in production"
+      logger.error(msg)
+      raise RuntimeError(msg)
     logger.info("Using test API key; skipping OpenAI connectivity check")
     return
   try:
@@ -208,20 +235,32 @@ async def log_requests(request: Request, call_next):
     response = await call_next(request)
   except Exception as exc:
     duration = (time.time() - start) * 1000
+    path = request.url.path
+    log_ip = ip
+    log_path = path
+    if path in SENSITIVE_PATHS:
+      log_ip = "redacted"
+      log_path = "redacted"
     logger.exception(
       "Error processing %s %s from %s in %.2fms",
       request.method,
-      request.url.path,
-      ip,
+      log_path,
+      log_ip,
       duration,
     )
     raise
   duration = (time.time() - start) * 1000
+  path = request.url.path
+  log_ip = ip
+  log_path = path
+  if path in SENSITIVE_PATHS:
+    log_ip = "redacted"
+    log_path = "redacted"
   logger.info(
     "%s %s from %s -> %s in %.2fms",
     request.method,
-    request.url.path,
-    ip,
+    log_path,
+    log_ip,
     response.status_code,
     duration,
   )
@@ -284,6 +323,7 @@ async def generate_pdf(data: dict) -> StreamingResponse:
     if not template_file.exists():
         logger.warning("Template not found for county %s", county)
         raise HTTPException(status_code=404, detail="Template not found")
+    verify_template_integrity(template_file)
 
     reader = PdfReader(str(template_file))
     writer = PdfWriter()
@@ -337,6 +377,9 @@ async def chat(request: ChatRequest):
     for msg in request.messages:
         if len(msg.content) > MAX_FIELD_LENGTH:
             raise HTTPException(status_code=413, detail="Field too large")
+        for pattern in DISALLOWED_PATTERNS:
+            if pattern.search(msg.content):
+                raise HTTPException(status_code=400, detail="Invalid content")
 
     messages = [
         {"role": msg.role, "content": sanitize_string(msg.content)}
