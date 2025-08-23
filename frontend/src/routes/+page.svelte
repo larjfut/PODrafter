@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { sanitizeBaseUrl } from '$lib/sanitizeBaseUrl'
 
   interface Message {
     role: 'user' | 'assistant'
@@ -18,9 +19,10 @@
     input = ''
 
     // 3️⃣ Call your backend
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api'
+    const baseUrl = sanitizeBaseUrl(import.meta.env.VITE_API_BASE_URL || '/api')
+    const url = `${baseUrl}/chat`
     try {
-      const res = await fetch(`${baseUrl}/chat`, {
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages })
