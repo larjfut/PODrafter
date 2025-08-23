@@ -172,6 +172,7 @@ async def generate_pdf(data: dict) -> StreamingResponse:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     county = data.get("county", "General")
+    logger.info("PDF requested for county %s", county)
     template_map = {
         "Harris": "harris.pdf",
         "Dallas": "dallas.pdf",
@@ -179,6 +180,9 @@ async def generate_pdf(data: dict) -> StreamingResponse:
         "General": "tx_general.pdf",
     }
     template_file = FORMS_DIR / template_map.get(county, "tx_general.pdf")
+
+    if not template_file.exists():
+        raise HTTPException(status_code=404, detail="Template not found")
 
     reader = PdfReader(str(template_file))
     writer = PdfWriter()
