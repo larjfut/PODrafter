@@ -4,6 +4,8 @@
 
 import { sveltekit } from '@sveltejs/kit/vite'
 
+const backendPort = process.env.BACKEND_PORT ?? 8080
+
 /** @type {import('vite').UserConfig} */
 const config = {
   plugins: [sveltekit()],
@@ -11,7 +13,7 @@ const config = {
     port: 5173,
     proxy: {
       // proxy API requests to the backend server
-      '/api': 'http://localhost:3000',
+      '/api': `http://localhost:${backendPort}`,
     },
   },
   resolve: {
@@ -27,4 +29,3 @@ const config = {
 }
 
 export default config
-
