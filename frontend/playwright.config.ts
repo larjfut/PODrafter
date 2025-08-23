@@ -8,4 +8,7 @@ export default defineConfig({
     reuseExistingServer: true,
   },
   testDir: 'tests',
+  use: {
+    baseURL: 'http://localhost:5173',
+  },
 })
