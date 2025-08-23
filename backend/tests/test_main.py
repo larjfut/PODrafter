@@ -1,4 +1,6 @@
 import os
+import io
+import zipfile
 import httpx
 import asyncio
 
@@ -74,6 +76,18 @@ def test_pdf_generation(monkeypatch):
             "PetitionerEmail": "jane@example.com",
             "RespondentName": "John Doe",
         }
+
+        zf = zipfile.ZipFile(io.BytesIO(resp.content))
+        names = zf.namelist()
+        assert "petition.pdf" in names
+        assert "cover_letter.html" in names
+        assert "filing_guide.html" in names
+        cover = zf.read("cover_letter.html").decode()
+        guide = zf.read("filing_guide.html").decode()
+        assert "Jane Doe" in cover
+        assert "Harris County District Clerk’s Office" in cover
+        assert "Harris County District Clerk’s Office" in guide
+        assert "1 Main St" in guide
 
     asyncio.run(_run())
 
