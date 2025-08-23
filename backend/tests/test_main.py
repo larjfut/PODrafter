@@ -199,6 +199,19 @@ def test_chat_openai_failure(monkeypatch):
   asyncio.run(_run())
 
 
+def test_chat_rejects_bad_content():
+  async def _run():
+    messages = [{"role": "user", "content": "<script>bad()</script>"}]
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        resp = await client.post("/api/chat", json={"messages": messages})
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "Invalid content"
+
+  asyncio.run(_run())
+
+
 def test_chat_request_too_large():
   async def _run():
     big_content = "a" * (MAX_REQUEST_SIZE + 1)
