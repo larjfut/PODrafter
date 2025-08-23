@@ -40,7 +40,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 pytest
 # start the server (requires OPENAI_API_KEY)
-uvicorn backend.main:app --reload
+uvicorn backend.main:app --reload --port 8080
 # frontend
 cd frontend && npm install
 npm test -- --watchAll=false
@@ -55,6 +55,7 @@ Copy `.env.example` to `.env` and set these keys:
 |------|---------|---------|
 | `OPENAI_API_KEY` | OpenAI token for GPT requests | – |
 | `ALLOWED_ORIGINS` | comma‑separated list of allowed CORS origins | `http://localhost:5173` |
+| `VITE_API_BASE_URL` | Base URL for the backend API | `http://localhost:8080` |
 
 ### Installing Test Dependencies
 
