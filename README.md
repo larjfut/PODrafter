@@ -48,6 +48,14 @@ npm test -- --watchAll=false
 npm run dev
 ```
 
+### Docker build
+
+Build the backend image from the repository root:
+
+```bash
+docker build -f backend/Dockerfile .
+```
+
 ### Environment Variables
 
 Copy `.env.example` to `.env` and set these keys:
