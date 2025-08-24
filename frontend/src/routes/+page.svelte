@@ -19,10 +19,10 @@
     input = ''
 
     // 3️⃣ Call your backend
-    const baseUrl = sanitizeBaseUrl(import.meta.env.VITE_API_BASE_URL || '/api')
+    const baseUrl = sanitizeBaseUrl(import.meta.env.PUBLIC_API_BASE_URL || '/api')
     const url = `${baseUrl}/chat`
     try {
-      const apiKey = import.meta.env.VITE_CHAT_API_KEY
+      const apiKey = import.meta.env.PUBLIC_CHAT_API_KEY
       const res = await fetch(url, {
         method: 'POST',
         headers: {
