@@ -67,12 +67,15 @@ Copy `.env.example` to `.env` and set these keys:
 | `VITE_API_BASE_URL` | Base path for the backend API | `/api` |
 | `REDIS_URL` | Redis connection string for rate limiting | `redis://localhost:6379/0` |
 | `CHAT_API_KEY` | shared secret for `/api/chat`; sent via `X-API-Key` header | – |
+| `VITE_CHAT_API_KEY` | frontend copy of `CHAT_API_KEY` for requests | – |
 
 Only exact origins are accepted. Separate multiple entries with commas and avoid wildcards (`*`), which are rejected for security.
 
 ### Chat authentication
 
-Requests to `/api/chat` must include an `X-API-Key` header matching `CHAT_API_KEY`. Ensure the frontend adds this header to chat requests.
+Requests to `/api/chat` must include an `X-API-Key` header matching `CHAT_API_KEY`. The frontend reads this value from `VITE_CHAT_API_KEY` at build time and attaches it to requests.
+
+For local development, set both `CHAT_API_KEY` and `VITE_CHAT_API_KEY` in `.env` to the same value. In production, configure the backend's `CHAT_API_KEY` and provide `VITE_CHAT_API_KEY` during the frontend build so the browser sends the correct header.
 
 ### Request size limits
 
