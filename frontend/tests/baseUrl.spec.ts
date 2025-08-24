@@ -8,10 +8,24 @@ test('baseUrl values with or without trailing slash match', () => {
 })
 
 test('allows http and https protocols', () => {
-  expect(sanitizeBaseUrl('http://api.example.com/')).toBe('http://api.example.com')
-  expect(sanitizeBaseUrl('https://api.example.com/')).toBe('https://api.example.com')
+  expect(sanitizeBaseUrl('http://api.example.com/')).toBe(
+    'http://api.example.com',
+  )
+  expect(sanitizeBaseUrl('https://api.example.com/')).toBe(
+    'https://api.example.com',
+  )
+})
+
+test('handles relative paths', () => {
+  expect(sanitizeBaseUrl('/api')).toBe('/api')
+  expect(sanitizeBaseUrl('/api/')).toBe('/api')
+  expect(sanitizeBaseUrl('/api/v1/')).toBe('/api/v1')
 })
 
 test('throws on unsupported protocol', () => {
   expect(() => sanitizeBaseUrl('ftp://api.example.com')).toThrow()
+})
+
+test('throws on invalid URL format', () => {
+  expect(() => sanitizeBaseUrl('not-a-url')).toThrow()
 })
