@@ -1,7 +1,17 @@
 export function sanitizeBaseUrl(url: string): string {
-  const protocol = new URL(url).protocol
-  if (protocol !== 'http:' && protocol !== 'https:') {
-    throw new Error(`unsupported protocol: ${protocol}`)
+  // Handle relative paths (like '/api')
+  if (url.startsWith('/')) {
+    return url.replace(/\/+$/, '')
   }
-  return url.replace(/\/+$/, '')
+
+  // Handle absolute URLs
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      throw new Error(`unsupported protocol: ${parsed.protocol}`)
+    }
+    return url.replace(/\/+$/, '')
+  } catch (error) {
+    throw new Error(`Invalid URL: ${url}`)
+  }
 }
