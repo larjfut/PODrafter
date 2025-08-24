@@ -19,7 +19,6 @@ sys.modules["redis"] = redis_stub
 sys.modules["redis.asyncio"] = redis_asyncio_stub
 
 os.environ["OPENAI_API_KEY"] = "test"
-os.environ["CHAT_API_KEY"] = "test-key"
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 

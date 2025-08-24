@@ -21,11 +21,11 @@ sys.modules["redis"] = redis_stub
 sys.modules["redis.asyncio"] = redis_asyncio_stub
 
 os.environ["OPENAI_API_KEY"] = "test"
-os.environ["CHAT_API_KEY"] = "test-key"
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from backend.main import MAX_REQUEST_SIZE, app
+from backend.main import MAX_REQUEST_SIZE, app, require_auth
+from fastapi import Request
 
 
 class DummyRedis:
@@ -45,6 +45,15 @@ class DummyRedis:
 @pytest.fixture(autouse=True)
 def _fake_redis(monkeypatch):
   monkeypatch.setattr("backend.main.redis_client", DummyRedis())
+
+
+@pytest.fixture
+def auth_override():
+  def override(request: Request):
+    return "test-user"
+  app.dependency_overrides[require_auth] = override
+  yield
+  app.dependency_overrides.pop(require_auth, None)
 
 
 def test_health():
@@ -156,7 +165,7 @@ def test_pdf_generation(monkeypatch):
   asyncio.run(_run())
 
 
-def test_chat_endpoint(monkeypatch):
+def test_chat_endpoint(monkeypatch, auth_override):
   async def fake_create(self, *args, **kwargs):
     class FakeMessage:
         role = "assistant"
@@ -178,8 +187,7 @@ def test_chat_endpoint(monkeypatch):
     ) as client:
         resp = await client.post(
             "/api/chat",
-            json={"messages": messages},
-            headers={"X-API-Key": "test-key"},
+            json={"messages": messages}
         )
     assert resp.status_code == 200
     assert resp.json() == {"role": "assistant", "content": "hi"}
@@ -187,7 +195,7 @@ def test_chat_endpoint(monkeypatch):
   asyncio.run(_run())
 
 
-def test_chat_openai_failure(monkeypatch):
+def test_chat_openai_failure(monkeypatch, auth_override):
   async def fake_create(self, *args, **kwargs):
     raise RuntimeError("boom")
 
@@ -199,8 +207,7 @@ def test_chat_openai_failure(monkeypatch):
     ) as client:
         resp = await client.post(
             "/api/chat",
-            json={"messages": messages},
-            headers={"X-API-Key": "test-key"},
+            json={"messages": messages}
         )
     assert resp.status_code == 500
     assert resp.json()["detail"] == "Internal server error"
@@ -245,7 +252,7 @@ def test_wildcard_allowed_origin(monkeypatch):
     main.get_allowed_origins()
 
 
-def test_chat_rejects_bad_content():
+def test_chat_rejects_bad_content(auth_override):
   async def _run():
     messages = [{"role": "user", "content": "<script>bad()</script>"}]
     async with httpx.AsyncClient(
@@ -253,8 +260,7 @@ def test_chat_rejects_bad_content():
     ) as client:
         resp = await client.post(
             "/api/chat",
-            json={"messages": messages},
-            headers={"X-API-Key": "test-key"},
+            json={"messages": messages}
         )
     assert resp.status_code == 400
     assert resp.json()["detail"] == "Invalid content"
@@ -262,7 +268,7 @@ def test_chat_rejects_bad_content():
   asyncio.run(_run())
 
 
-def test_chat_request_too_large():
+def test_chat_request_too_large(auth_override):
   async def _run():
     big_content = "a" * (MAX_REQUEST_SIZE + 1)
     messages = [{"role": "user", "content": big_content}]
@@ -271,8 +277,7 @@ def test_chat_request_too_large():
     ) as client:
         resp = await client.post(
             "/api/chat",
-            json={"messages": messages},
-            headers={"X-API-Key": "test-key"},
+            json={"messages": messages}
         )
     assert resp.status_code == 413
 
