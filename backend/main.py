@@ -25,7 +25,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from jsonschema import ValidationError, validate, FormatChecker
 from openai import AsyncOpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from PyPDF2 import PdfReader, PdfWriter
 from starlette.middleware.base import BaseHTTPMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
@@ -84,6 +84,29 @@ def sanitize_string(value: str) -> str:
   cleaned = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", cleaned)
   cleaned = re.sub(r"(javascript:|data:)", "", cleaned, flags=re.IGNORECASE)
   return cleaned.strip()[:MAX_FIELD_LENGTH]
+
+
+def sanitize_url(value: str) -> str:
+  """Return a sanitized URL if scheme is http/https, else an empty string."""
+  cleaned = sanitize_string(value)
+  parsed = urlparse(cleaned)
+  if parsed.scheme not in {"http", "https"}:
+    return ""
+  return cleaned
+
+
+class CoverLetterContext(BaseModel):
+  """Context data for cover letter templates."""
+
+  resume_qr_url: str | None = None
+
+  @field_validator("resume_qr_url", mode="before")
+  @classmethod
+  def validate_resume_qr_url(cls, v: str | None) -> str | None:
+    if v is None:
+      return None
+    sanitized = sanitize_url(v)
+    return sanitized or None
 
 
 def verify_template_integrity(path: Path) -> None:
