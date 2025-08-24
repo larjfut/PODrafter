@@ -114,3 +114,79 @@ def test_spoofed_forwarded_for_ignored(monkeypatch):
     assert resp2.status_code == 429
 
   asyncio.run(_run())
+
+
+def test_timestamp_cleanup(monkeypatch):
+  async def _run():
+    monkeypatch.setattr(main, 'FALLBACK_IP_TTL', 100)
+    monkeypatch.setattr(main, 'RATE_WINDOW', 2)
+    monkeypatch.setattr(main, 'RATE_LIMIT', 10)
+    ts = TimeStub()
+    monkeypatch.setattr(main.time, 'time', ts.time)
+
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app, client=('1.1.1.1', 0)), base_url='http://testserver') as client:
+      await client.get('/health')
+    assert len(main.fallback_store['1.1.1.1']) == 1
+
+    ts.now += 1
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app, client=('1.1.1.1', 0)), base_url='http://testserver') as client:
+      await client.get('/health')
+    assert len(main.fallback_store['1.1.1.1']) == 2
+
+    ts.now += 3
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app, client=('1.1.1.1', 0)), base_url='http://testserver') as client:
+      await client.get('/health')
+    assert len(main.fallback_store['1.1.1.1']) == 1
+
+  asyncio.run(_run())
+
+
+class FlakyRedis:
+  def __init__(self):
+    self.fail = True
+
+  async def zremrangebyscore(self, *args, **kwargs):
+    if self.fail:
+      raise RuntimeError('down')
+    return 0
+
+  async def zcard(self, *args, **kwargs):
+    if self.fail:
+      raise RuntimeError('down')
+    return 0
+
+  async def zadd(self, *args, **kwargs):
+    if self.fail:
+      raise RuntimeError('down')
+    return 0
+
+  async def expire(self, *args, **kwargs):
+    if self.fail:
+      raise RuntimeError('down')
+    return True
+
+  async def ping(self, *args, **kwargs):
+    if self.fail:
+      raise RuntimeError('down')
+    return True
+
+
+def test_fallback_store_cleared_on_recovery(monkeypatch):
+  async def _run():
+    redis = FlakyRedis()
+    monkeypatch.setattr(main, 'redis_client', redis)
+    ts = TimeStub()
+    monkeypatch.setattr(main.time, 'time', ts.time)
+
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app, client=('1.1.1.1', 0)), base_url='http://testserver') as client:
+      await client.get('/health')
+    assert main.fallback_active is True
+    assert '1.1.1.1' in main.fallback_store
+
+    redis.fail = False
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app, client=('2.2.2.2', 0)), base_url='http://testserver') as client:
+      await client.get('/health')
+    assert main.fallback_active is False
+    assert main.fallback_store == {}
+
+  asyncio.run(_run())
