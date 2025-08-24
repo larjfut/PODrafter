@@ -28,6 +28,7 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel
 from PyPDF2 import PdfReader, PdfWriter
 from starlette.middleware.base import BaseHTTPMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from typing import Literal
 
 # Base paths
@@ -95,9 +96,19 @@ def verify_template_integrity(path: Path) -> None:
     logger.error("Template checksum mismatch for %s", path.name)
     raise HTTPException(status_code=500, detail="Template integrity check failed")
 
+
+def get_client_ip(request: Request) -> str:
+  """Return the client IP after proxy header resolution."""
+  if request.client and request.client.host:
+    return request.client.host
+  xff = request.headers.get("x-forwarded-for")
+  if xff:
+    return xff.split(",")[0].strip()
+  return "anon"
+
 class RateLimitMiddleware(BaseHTTPMiddleware):
   async def dispatch(self, request: Request, call_next):
-    ip = request.client.host if request.client else "anon"
+    ip = get_client_ip(request)
     now = time.time()
     key = f"ratelimit:{ip}"
     global fallback_store, fallback_active
@@ -254,11 +265,12 @@ app.add_middleware(
   allow_methods=["POST", "GET"],
   allow_headers=["*"],
 )
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-  ip = request.client.host if request.client else "anon"
+  ip = get_client_ip(request)
   start = time.time()
   try:
     response = await call_next(request)
