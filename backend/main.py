@@ -171,7 +171,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
 
 class BodySizeLimitMiddleware(BaseHTTPMiddleware):
-  """Reject requests that declare a body larger than MAX_REQUEST_SIZE."""
+  """Reject requests over MAX_REQUEST_SIZE."""
 
   async def dispatch(self, request: Request, call_next):
     cl = request.headers.get("content-length")
@@ -181,6 +181,23 @@ class BodySizeLimitMiddleware(BaseHTTPMiddleware):
           return JSONResponse(status_code=413, content={"detail": "Request too large"})
       except ValueError:
         return JSONResponse(status_code=400, content={"detail": "Invalid content length"})
+    else:
+      body = bytearray()
+      async for chunk in request.stream():
+        body.extend(chunk)
+        if len(body) > MAX_REQUEST_SIZE:
+          return JSONResponse(status_code=413, content={"detail": "Request too large"})
+      body_bytes = bytes(body)
+      if body_bytes:
+        request._body = body_bytes
+        consumed = False
+        async def receive():
+          nonlocal consumed
+          if not consumed:
+            consumed = True
+            return {"type": "http.request", "body": body_bytes, "more_body": False}
+          return {"type": "http.disconnect"}
+        request._receive = receive
     return await call_next(request)
 
 # OpenAI client
