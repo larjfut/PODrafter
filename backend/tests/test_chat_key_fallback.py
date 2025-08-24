@@ -1,23 +1,10 @@
 import asyncio
 import httpx
-import types
 import importlib
 import sys
 from pathlib import Path
 import pytest
 from openai.resources.chat.completions import AsyncCompletions
-
-# stub redis module for tests
-redis_stub = types.ModuleType("redis")
-redis_asyncio_stub = types.ModuleType("redis.asyncio")
-
-def from_url(*args, **kwargs):
-  return None
-
-redis_asyncio_stub.from_url = from_url
-redis_stub.asyncio = redis_asyncio_stub
-sys.modules["redis"] = redis_stub
-sys.modules["redis.asyncio"] = redis_asyncio_stub
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
