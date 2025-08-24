@@ -440,12 +440,41 @@ async def generate_pdf(data: dict) -> StreamingResponse:
 # ✅ Add your OpenAI chat endpoint below
 
 class Message(BaseModel):
-    role: Literal["user", "assistant"]
-    content: str
+  role: Literal["user", "assistant", "system"]
+  content: str
 
 
 class ChatRequest(BaseModel):
-    messages: list[Message]
+  messages: list[Message]
+
+
+TOOLS = [
+  {
+    "type": "function",
+    "function": {
+      "name": "set_petition_data",
+      "description": "Store petition data fields provided by the user",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "county": {
+            "type": "string",
+            "enum": ["Harris", "Dallas", "Travis", "General"],
+          },
+          "case_no": {"type": "string"},
+          "hearing_date": {"type": "string"},
+          "petitioner_full_name": {"type": "string"},
+          "petitioner_address": {"type": "string"},
+          "petitioner_phone": {"type": "string"},
+          "petitioner_email": {"type": "string"},
+          "respondent_full_name": {"type": "string"},
+          "firearm_surrender": {"type": "boolean"},
+        },
+        "additionalProperties": False,
+      },
+    },
+  }
+]
 
 @app.post("/api/chat")
 async def chat(chat_request: ChatRequest, request: Request):
@@ -477,8 +506,20 @@ async def chat(chat_request: ChatRequest, request: Request):
       model="gpt-4o",
       messages=messages,
       temperature=0.7,
+      tools=TOOLS,
+      tool_choice="auto",
     )
-    return response.choices[0].message.model_dump()
+    msg = response.choices[0].message
+    data: dict[str, str | bool] = {}
+    for call in getattr(msg, "tool_calls", []) or []:
+      if call.function.name == "set_petition_data":
+        try:
+          data.update(json.loads(call.function.arguments))
+        except json.JSONDecodeError:
+          logger.debug("Invalid JSON in tool call arguments")
+    result = msg.model_dump()
+    result["data"] = data
+    return result
   except Exception as e:
     logger.exception("chat endpoint failed", exc_info=e)
     raise HTTPException(status_code=500, detail="Internal server error") from e

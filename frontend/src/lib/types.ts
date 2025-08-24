@@ -32,6 +32,7 @@ export interface AppState {
 export interface ChatResponse {
   role: 'assistant'
   content: string
+  data?: Partial<PetitionData>
 }
 
 export interface PDFResponse {

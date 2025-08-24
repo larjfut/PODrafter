@@ -6,15 +6,21 @@ import type {
   ValidationError,
   ValidationResult
 } from './types'
-import { API_BASE_URL, REQUIRED_FIELDS } from './constants'
+import { API_BASE_URL, REQUIRED_FIELDS, SYSTEM_PROMPT } from './constants'
 
 export async function sendChat(
   messages: ChatMessage[]
 ): Promise<ChatResponse> {
+  const payload = {
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      ...messages.map(m => ({ role: m.role, content: m.content }))
+    ]
+  }
   const res = await fetch(`${API_BASE_URL}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages })
+    body: JSON.stringify(payload)
   })
   if (!res.ok) throw new Error(`Chat request failed: ${res.status}`)
   return res.json()
