@@ -80,7 +80,7 @@
       <li>Review the checklist below to ensure completion.</li>
       <li>Place documents in the provided manila envelope.</li>
       <li>Submit to the Clerk’s office at:</li>
-      <p>{{ county_clerk_address | replace('\n', '<br>') | safe }}</p>
+      <p>{{ county_clerk_address | e | replace('\n', '<br>' | safe) | safe }}</p>
       <li>Request fee waiver and ask for file-stamping.</li>
       <li>Obtain file-stamped copy and retain for your records.</li>
       <li>Mail the stamped copy back to:</li>
