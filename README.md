@@ -63,9 +63,11 @@ Copy `.env.example` to `.env` and set these keys:
 | Name | Purpose | Default |
 |------|---------|---------|
 | `OPENAI_API_KEY` | OpenAI token for GPT requests | – |
-| `ALLOWED_ORIGINS` | comma‑separated list of allowed CORS origins | `http://localhost:5173` |
+| `ALLOWED_ORIGINS` | comma‑separated list of allowed CORS origins (exact URLs; wildcards `*` forbidden) | `http://localhost:5173` |
 | `VITE_API_BASE_URL` | Base path for the backend API | `/api` |
 | `REDIS_URL` | Redis connection string for rate limiting | `redis://localhost:6379/0` |
+
+Only exact origins are accepted. Separate multiple entries with commas and avoid wildcards (`*`), which are rejected for security.
 
 ### Installing Test Dependencies
 

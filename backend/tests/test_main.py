@@ -199,6 +199,22 @@ def test_chat_openai_failure(monkeypatch):
   asyncio.run(_run())
 
 
+def test_invalid_allowed_origin(monkeypatch):
+  from backend import main
+
+  monkeypatch.setenv("ALLOWED_ORIGINS", "not-a-url")
+  with pytest.raises(RuntimeError):
+    main.get_allowed_origins()
+
+
+def test_wildcard_allowed_origin(monkeypatch):
+  from backend import main
+
+  monkeypatch.setenv("ALLOWED_ORIGINS", "http://example.com,*")
+  with pytest.raises(RuntimeError):
+    main.get_allowed_origins()
+
+
 def test_chat_rejects_bad_content():
   async def _run():
     messages = [{"role": "user", "content": "<script>bad()</script>"}]

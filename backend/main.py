@@ -17,6 +17,7 @@ import re
 import time
 import zipfile
 from pathlib import Path
+from urllib.parse import urlparse
 import redis.asyncio as redis
 
 from fastapi import FastAPI, HTTPException, Request
@@ -222,11 +223,25 @@ reload_schema()
 
 
 # CORS config
-allowed_origins = [
-  o.strip()
-  for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
-  if o.strip()
-]
+DEFAULT_ALLOWED_ORIGINS = ["http://localhost:5173"]
+
+
+def get_allowed_origins() -> list[str]:
+  raw = os.getenv("ALLOWED_ORIGINS", ",".join(DEFAULT_ALLOWED_ORIGINS))
+  origins: list[str] = []
+  for origin in (o.strip() for o in raw.split(",")):
+    if not origin:
+      continue
+    if "*" in origin:
+      raise RuntimeError(f"Wildcard origin not allowed: {origin}")
+    parsed = urlparse(origin)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+      raise RuntimeError(f"Invalid origin URL: {origin}")
+    origins.append(origin)
+  return origins
+
+
+allowed_origins = get_allowed_origins()
 
 # FastAPI app
 app = FastAPI()
