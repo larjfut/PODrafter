@@ -97,26 +97,25 @@ def test_store_size_pruning(monkeypatch):
   asyncio.run(_run())
 
 
-def test_rate_limit_with_x_forwarded_for(monkeypatch):
+def test_rate_limit_with_trusted_proxy(monkeypatch):
   async def _run():
     monkeypatch.setattr(main, 'RATE_LIMIT', 1)
     headers = {'x-forwarded-for': '5.5.5.5'}
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app, client=('1.1.1.1', 0)), base_url='http://testserver') as client:
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app, client=('127.0.0.1', 0)), base_url='http://testserver') as client:
       resp1 = await client.get('/health', headers=headers)
-    assert resp1.status_code == 200
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app, client=('2.2.2.2', 0)), base_url='http://testserver') as client:
       resp2 = await client.get('/health', headers=headers)
+    assert resp1.status_code == 200
     assert resp2.status_code == 429
 
   asyncio.run(_run())
 
 
-def test_rate_limit_uses_first_forwarded_ip(monkeypatch):
+def test_spoofed_forwarded_for_ignored(monkeypatch):
   async def _run():
     monkeypatch.setattr(main, 'RATE_LIMIT', 1)
-    headers1 = {'x-forwarded-for': '1.1.1.1, 2.2.2.2'}
-    headers2 = {'x-forwarded-for': '1.1.1.1, 3.3.3.3'}
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app, client=('5.5.5.5', 0)), base_url='http://testserver') as client:
+    headers1 = {'x-forwarded-for': '5.5.5.5'}
+    headers2 = {'x-forwarded-for': '6.6.6.6'}
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app, client=('1.1.1.1', 0)), base_url='http://testserver') as client:
       resp1 = await client.get('/health', headers=headers1)
       resp2 = await client.get('/health', headers=headers2)
     assert resp1.status_code == 200

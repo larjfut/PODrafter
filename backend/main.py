@@ -101,9 +101,6 @@ def get_client_ip(request: Request) -> str:
   """Return the client IP after proxy header resolution."""
   if request.client and request.client.host:
     return request.client.host
-  xff = request.headers.get("x-forwarded-for")
-  if xff:
-    return xff.split(",")[0].strip()
   return "anon"
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -265,7 +262,7 @@ app.add_middleware(
   allow_methods=["POST", "GET"],
   allow_headers=["*"],
 )
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["127.0.0.1"])
 
 
 @app.middleware("http")
