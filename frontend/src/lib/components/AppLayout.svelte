@@ -72,11 +72,13 @@
   {#if $appState.error}
     <p class="text-red-600 mb-2">{$appState.error}</p>
   {/if}
-  <nav class="mb-4 flex justify-between">
-    {#each WIZARD_STEPS as step}
-      <span class:text-blue-600={step === $appState.currentStep}>{step}</span>
-    {/each}
-  </nav>
+<nav class="mb-4 flex justify-between">
+  {#each WIZARD_STEPS as { step, title }}
+    <span class:text-blue-600={step === $appState.currentStep}>
+      {title}
+    </span>
+  {/each}
+</nav>
 
   {#if $appState.currentStep === 'chat'}
     <div class="chat-area mb-4 h-64 overflow-y-auto border p-2 rounded">
