@@ -33,8 +33,8 @@ from typing import Literal
 
 # Base paths
 BASE_DIR = Path(__file__).resolve().parent.parent
-SCHEMA_PATH = BASE_DIR / "schema" / "petition.schema.json"
-FORMS_DIR = BASE_DIR / "forms" / "standard"
+SCHEMA_PATH = Path(os.getenv("SCHEMA_PATH", BASE_DIR / "schema" / "petition.schema.json"))
+FORMS_DIR = Path(os.getenv("FORMS_DIR", BASE_DIR / "forms" / "standard"))
 
 # Mapping of petition data keys to PDF form fields
 FIELD_MAP = {
