@@ -20,7 +20,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 import redis.asyncio as redis
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from jsonschema import ValidationError, validate, FormatChecker
@@ -59,7 +59,6 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 redis_client = redis.from_url(REDIS_URL, decode_responses=True)
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
-CHAT_API_KEY = os.getenv("CHAT_API_KEY")
 SENSITIVE_PATHS = {"/api/chat", "/pdf"}
 DISALLOWED_PATTERNS = [re.compile(p, re.IGNORECASE) for p in ["<script", "javascript:", "data:"]]
 
@@ -444,17 +443,17 @@ class Message(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    messages: list[Message]
+  messages: list[Message]
+
+def require_auth(request: Request) -> str:
+  user = getattr(request.state, "user", None)
+  if not user:
+    raise HTTPException(status_code=401, detail="Unauthorized")
+  return user
+
 
 @app.post("/api/chat")
-async def chat(chat_request: ChatRequest, request: Request):
-  provided = request.headers.get("X-API-Key")
-  if CHAT_API_KEY is None:
-    logger.error("CHAT_API_KEY is not set")
-    raise HTTPException(status_code=500, detail="Server misconfiguration")
-  if not provided or provided != CHAT_API_KEY:
-    raise HTTPException(status_code=401, detail="Unauthorized")
-
+async def chat(chat_request: ChatRequest, _user: str = Depends(require_auth)):
   payload = chat_request.model_dump()
   if len(json.dumps(payload).encode("utf-8")) > MAX_REQUEST_SIZE:
     raise HTTPException(status_code=413, detail="Request too large")
