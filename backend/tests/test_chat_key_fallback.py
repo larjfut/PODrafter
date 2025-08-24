@@ -1,12 +1,8 @@
 import asyncio
 import httpx
 import importlib
-import sys
-from pathlib import Path
 import pytest
 from openai.resources.chat.completions import AsyncCompletions
-
-sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 
 class DummyRedis:

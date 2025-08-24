@@ -5,14 +5,10 @@ import asyncio
 import httpx
 from openai.resources.chat.completions import AsyncCompletions
 from PyPDF2 import PdfReader
-import sys
-from pathlib import Path
 import pytest
 
 os.environ["OPENAI_API_KEY"] = "test"
 os.environ["CHAT_API_KEY"] = "test-key"
-
-sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from backend.main import MAX_REQUEST_SIZE, app
 

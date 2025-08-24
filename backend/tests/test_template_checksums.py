@@ -1,11 +1,7 @@
 import os
-import sys
-from pathlib import Path
 import hashlib
 
 os.environ["OPENAI_API_KEY"] = "test"
-
-sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from backend.main import TEMPLATE_CHECKSUMS, FORMS_DIR
 
