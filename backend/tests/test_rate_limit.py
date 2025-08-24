@@ -1,13 +1,8 @@
 import os
 import asyncio
 import httpx
-import sys
-import types
 import pytest
-
-# stub redis module with failing client
-redis_stub = types.ModuleType('redis')
-redis_asyncio_stub = types.ModuleType('redis.asyncio')
+import redis.asyncio as redis_asyncio
 
 class DummyRedis:
   async def zremrangebyscore(self, *args, **kwargs):
@@ -28,10 +23,7 @@ class DummyRedis:
 def from_url(*args, **kwargs):
   return DummyRedis()
 
-redis_asyncio_stub.from_url = from_url
-redis_stub.asyncio = redis_asyncio_stub
-sys.modules['redis'] = redis_stub
-sys.modules['redis.asyncio'] = redis_asyncio_stub
+redis_asyncio.from_url = from_url
 
 os.environ['OPENAI_API_KEY'] = 'test'
 
