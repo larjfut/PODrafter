@@ -74,6 +74,10 @@ Only exact origins are accepted. Separate multiple entries with commas and avoid
 
 Requests to `/api/chat` must include an `X-API-Key` header matching `CHAT_API_KEY`. Ensure the frontend adds this header to chat requests.
 
+### Request size limits
+
+The backend rejects bodies larger than `MAX_REQUEST_SIZE` (10 KB). Requests declaring a larger `Content-Length` receive a **413**. For chunked or streaming requests without `Content-Length`, the body is read incrementally and processing stops once the limit is exceeded, returning **413**.
+
 ### Installing Test Dependencies
 
 Install Python packages for the micro‑service and Node packages for the SvelteKit front‑end before running tests.
