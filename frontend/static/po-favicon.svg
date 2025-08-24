@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .bg { fill: #F3F3F1; }
+      .ink { fill: #2F3437; stroke: #2F3437; }
+      .stroke { stroke: #2F3437; }
+      .handle { fill: #F2C94C; stroke: #2F3437; }
+      .ferrule { fill: #8F8F8F; stroke: #2F3437; }
+    </style>
+  </defs>
+
+  <!-- Rounded background -->
+  <rect class="bg" x="8" y="8" width="240" height="240" rx="48"/>
+
+  <!-- P.O. lettering -->
+  <g fill="#2F3437" font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif" font-weight="800" font-size="92">
+    <text x="28" y="98">P.O.</text>
+  </g>
+
+  <!-- Dashed selection square -->
+  <rect x="28" y="132" width="80" height="80" rx="10"
+        fill="none" stroke="#2F3437" stroke-width="10"
+        stroke-linecap="round" stroke-dasharray="14 12"/>
+
+  <!-- Curved arrow indicating ease -->
+  <g fill="none" stroke="#2F3437" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M160 56c30 0 54 14 66 28"/>
+    <path d="M226 70l-3 22l-22-6"/>
+  </g>
+
+  <!-- Paintbrush (easy creation cue) -->
+  <g transform="translate(150,160) rotate(25)">
+    <!-- Handle -->
+    <rect class="handle" x="0" y="-14" width="88" height="28" rx="14" stroke-width="8"/>
+    <!-- Ferrule -->
+    <rect class="ferrule" x="86" y="-10" width="20" height="20" rx="6" stroke-width="8"/>
+    <!-- Bristles -->
+    <path d="M106 -20
+             C130 -16, 140 -2, 142 12
+             C120 8, 108 8, 98 6
+             C102 -2, 104 -10, 106 -20Z"
+          fill="#2F3437" stroke="#2F3437" stroke-width="8" />
+  </g>
+</svg>
