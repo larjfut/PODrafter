@@ -3,12 +3,12 @@
 // - documents build and alias settings
 
 import { sveltekit } from '@sveltejs/kit/vite'
+import { defineConfig } from 'vitest/config'
 
 const backendPort = process.env.BACKEND_PORT ?? 8080
 const frontendPort = Number(process.env.FRONTEND_PORT) || 5173
 
-/** @type {import('vite').UserConfig} */
-const config = {
+export default defineConfig({
   plugins: [sveltekit()],
   server: {
     port: frontendPort,
@@ -27,6 +27,8 @@ const config = {
     // generate sourcemaps to aid in debugging
     sourcemap: true,
   },
-}
-
-export default config
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./tests/setup.ts']
+  }
+})
