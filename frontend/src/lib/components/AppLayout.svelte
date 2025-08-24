@@ -42,6 +42,7 @@
       if (res.data) {
         petitionData.update(d => ({ ...d, ...res.data }))
       }
+
     } catch (err) {
       console.error(err)
       appState.update(s => ({ ...s, error: 'Chat request failed' }))
@@ -141,6 +142,8 @@
       on:click={nextStep}
       disabled={!validation.isValid}
     >
+
+    <button class="mt-4 bg-gray-200 px-3 py-1 rounded" on:click={nextStep}>
       Review
     </button>
   {:else if $appState.currentStep === 'review'}
