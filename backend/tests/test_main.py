@@ -167,7 +167,7 @@ def test_chat_endpoint(monkeypatch):
             headers={"X-API-Key": "test-key"},
         )
     assert resp.status_code == 200
-    assert resp.json() == {"role": "assistant", "content": "hi"}
+    assert resp.json() == {"role": "assistant", "content": "hi", "data": {}}
 
   asyncio.run(_run())
 

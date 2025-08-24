@@ -17,6 +17,8 @@
     FIELD_LABELS
   ) as [keyof PetitionData, string][]
 
+  $: validation = validatePetition($petitionData)
+
   async function handleSend() {
     if (userInput.trim().length === 0) return
     const userMsg: ChatMessage = {
@@ -30,6 +32,9 @@
     appState.update(s => ({ ...s, isLoading: true }))
     try {
       const res = await sendChat(get(chatMessages))
+      if (res.data) {
+        petitionData.update(d => ({ ...d, ...res.data }))
+      }
       const assistantMsg: ChatMessage = {
         role: 'assistant',
         content: res.content,
@@ -108,7 +113,34 @@
         Send
       </button>
     </form>
-    <button class="mt-4 bg-gray-200 px-3 py-1 rounded" on:click={nextStep}>
+    <div class="mt-4 p-2 border rounded">
+      <p class="mb-2">Progress: {validation.completionPercentage}%</p>
+      {#each fieldEntries as [field, label]}
+        <div class="mb-2 flex items-center gap-2">
+          <input
+            class="flex-grow border p-1 rounded"
+            placeholder={label}
+            value={$petitionData[field] ?? ''}
+            on:input={(e) =>
+              petitionData.update(d => ({
+                ...d,
+                [field]: (e.target as HTMLInputElement).value
+              }))
+            }
+          />
+          {#if $petitionData[field]}
+            <span class="text-green-600">✔</span>
+          {:else}
+            <span class="text-red-600">✖</span>
+          {/if}
+        </div>
+      {/each}
+    </div>
+    <button
+      class="mt-4 bg-gray-200 px-3 py-1 rounded"
+      on:click={nextStep}
+      disabled={!validation.isValid}
+    >
       Review
     </button>
   {:else if $appState.currentStep === 'review'}
