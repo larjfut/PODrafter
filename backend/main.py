@@ -58,6 +58,7 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 redis_client = redis.from_url(REDIS_URL, decode_responses=True)
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+CHAT_API_KEY = os.getenv("CHAT_API_KEY")
 SENSITIVE_PATHS = {"/api/chat", "/pdf"}
 DISALLOWED_PATTERNS = [re.compile(p, re.IGNORECASE) for p in ["<script", "javascript:", "data:"]]
 
@@ -397,30 +398,37 @@ class ChatRequest(BaseModel):
     messages: list[Message]
 
 @app.post("/api/chat")
-async def chat(request: ChatRequest):
-    payload = request.model_dump()
-    if len(json.dumps(payload).encode("utf-8")) > MAX_REQUEST_SIZE:
-        raise HTTPException(status_code=413, detail="Request too large")
+async def chat(chat_request: ChatRequest, request: Request):
+  provided = request.headers.get("X-API-Key")
+  if CHAT_API_KEY is None:
+    logger.error("CHAT_API_KEY is not set")
+    raise HTTPException(status_code=500, detail="Server misconfiguration")
+  if not provided or provided != CHAT_API_KEY:
+    raise HTTPException(status_code=401, detail="Unauthorized")
 
-    for msg in request.messages:
-        if len(msg.content) > MAX_FIELD_LENGTH:
-            raise HTTPException(status_code=413, detail="Field too large")
-        for pattern in DISALLOWED_PATTERNS:
-            if pattern.search(msg.content):
-                raise HTTPException(status_code=400, detail="Invalid content")
+  payload = chat_request.model_dump()
+  if len(json.dumps(payload).encode("utf-8")) > MAX_REQUEST_SIZE:
+    raise HTTPException(status_code=413, detail="Request too large")
 
-    messages = [
-        {"role": msg.role, "content": sanitize_string(msg.content)}
-        for msg in request.messages
-    ]
+  for msg in chat_request.messages:
+    if len(msg.content) > MAX_FIELD_LENGTH:
+      raise HTTPException(status_code=413, detail="Field too large")
+    for pattern in DISALLOWED_PATTERNS:
+      if pattern.search(msg.content):
+        raise HTTPException(status_code=400, detail="Invalid content")
 
-    try:
-        response = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=messages,
-            temperature=0.7,
-        )
-        return response.choices[0].message.model_dump()
-    except Exception as e:
-        logger.exception("chat endpoint failed", exc_info=e)
-        raise HTTPException(status_code=500, detail="Internal server error") from e
+  messages = [
+    {"role": msg.role, "content": sanitize_string(msg.content)}
+    for msg in chat_request.messages
+  ]
+
+  try:
+    response = await client.chat.completions.create(
+      model="gpt-4o",
+      messages=messages,
+      temperature=0.7,
+    )
+    return response.choices[0].message.model_dump()
+  except Exception as e:
+    logger.exception("chat endpoint failed", exc_info=e)
+    raise HTTPException(status_code=500, detail="Internal server error") from e

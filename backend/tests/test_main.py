@@ -21,6 +21,7 @@ sys.modules["redis"] = redis_stub
 sys.modules["redis.asyncio"] = redis_asyncio_stub
 
 os.environ["OPENAI_API_KEY"] = "test"
+os.environ["CHAT_API_KEY"] = "test-key"
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
@@ -175,7 +176,11 @@ def test_chat_endpoint(monkeypatch):
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://testserver"
     ) as client:
-        resp = await client.post("/api/chat", json={"messages": messages})
+        resp = await client.post(
+            "/api/chat",
+            json={"messages": messages},
+            headers={"X-API-Key": "test-key"},
+        )
     assert resp.status_code == 200
     assert resp.json() == {"role": "assistant", "content": "hi"}
 
@@ -192,9 +197,34 @@ def test_chat_openai_failure(monkeypatch):
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://testserver"
     ) as client:
-        resp = await client.post("/api/chat", json={"messages": messages})
+        resp = await client.post(
+            "/api/chat",
+            json={"messages": messages},
+            headers={"X-API-Key": "test-key"},
+        )
     assert resp.status_code == 500
     assert resp.json()["detail"] == "Internal server error"
+
+  asyncio.run(_run())
+
+
+def test_chat_auth_required(monkeypatch):
+  called = False
+
+  async def fake_create(self, *args, **kwargs):
+    nonlocal called
+    called = True
+    return None
+
+  async def _run():
+    monkeypatch.setattr(AsyncCompletions, "create", fake_create)
+    messages = [{"role": "user", "content": "hello"}]
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        resp = await client.post("/api/chat", json={"messages": messages})
+    assert resp.status_code == 401
+    assert called is False
 
   asyncio.run(_run())
 
@@ -221,7 +251,11 @@ def test_chat_rejects_bad_content():
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://testserver"
     ) as client:
-        resp = await client.post("/api/chat", json={"messages": messages})
+        resp = await client.post(
+            "/api/chat",
+            json={"messages": messages},
+            headers={"X-API-Key": "test-key"},
+        )
     assert resp.status_code == 400
     assert resp.json()["detail"] == "Invalid content"
 
@@ -235,7 +269,11 @@ def test_chat_request_too_large():
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://testserver"
     ) as client:
-        resp = await client.post("/api/chat", json={"messages": messages})
+        resp = await client.post(
+            "/api/chat",
+            json={"messages": messages},
+            headers={"X-API-Key": "test-key"},
+        )
     assert resp.status_code == 413
 
   asyncio.run(_run())

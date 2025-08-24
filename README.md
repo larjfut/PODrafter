@@ -66,8 +66,13 @@ Copy `.env.example` to `.env` and set these keys:
 | `ALLOWED_ORIGINS` | comma‑separated list of allowed CORS origins (exact URLs; wildcards `*` forbidden) | `http://localhost:5173` |
 | `VITE_API_BASE_URL` | Base path for the backend API | `/api` |
 | `REDIS_URL` | Redis connection string for rate limiting | `redis://localhost:6379/0` |
+| `CHAT_API_KEY` | shared secret for `/api/chat`; sent via `X-API-Key` header | – |
 
 Only exact origins are accepted. Separate multiple entries with commas and avoid wildcards (`*`), which are rejected for security.
+
+### Chat authentication
+
+Requests to `/api/chat` must include an `X-API-Key` header matching `CHAT_API_KEY`. Ensure the frontend adds this header to chat requests.
 
 ### Installing Test Dependencies
 
