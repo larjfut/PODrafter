@@ -17,6 +17,8 @@
     FIELD_LABELS
   ) as [keyof PetitionData, string][]
 
+  $: validation = validatePetition($petitionData)
+
   async function handleSend() {
     if (userInput.trim().length === 0) return
     const userMsg: ChatMessage = {
@@ -37,6 +39,10 @@
         id: crypto.randomUUID()
       }
       chatMessages.update(m => [...m, assistantMsg])
+      if (res.data) {
+        petitionData.update(d => ({ ...d, ...res.data }))
+      }
+
     } catch (err) {
       console.error(err)
       appState.update(s => ({ ...s, error: 'Chat request failed' }))
@@ -108,6 +114,37 @@
         Send
       </button>
     </form>
+    <div class="mt-4">
+      <p class="mb-2">Progress: {validation.completionPercentage}%</p>
+      {#if validation.errors.length > 0}
+        <ul class="text-sm text-red-600 mb-2">
+          {#each validation.errors as err}
+            <li>{FIELD_LABELS[err.field]} is required</li>
+          {/each}
+        </ul>
+      {/if}
+      {#each fieldEntries as [field, label]}
+        <div class="mb-2">
+          <label class="font-bold">{label}</label>
+          <input
+            class="w-full border p-2 rounded"
+            value={$petitionData[field] ?? ''}
+            on:input={(e) =>
+              petitionData.update(d => ({
+                ...d,
+                [field]: (e.target as HTMLInputElement).value
+              }))
+            }
+          />
+        </div>
+      {/each}
+    </div>
+    <button
+      class="mt-4 bg-gray-200 px-3 py-1 rounded"
+      on:click={nextStep}
+      disabled={!validation.isValid}
+    >
+
     <button class="mt-4 bg-gray-200 px-3 py-1 rounded" on:click={nextStep}>
       Review
     </button>

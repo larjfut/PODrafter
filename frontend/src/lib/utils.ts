@@ -6,7 +6,8 @@ import type {
   ValidationError,
   ValidationResult
 } from './types'
-import { API_BASE_URL, REQUIRED_FIELDS } from './constants'
+import { API_BASE_URL, REQUIRED_FIELDS, SYSTEM_PROMPT } from './constants'
+
 
 export async function sendChat(
   messages: ChatMessage[]
@@ -14,7 +15,11 @@ export async function sendChat(
   const res = await fetch(`${API_BASE_URL}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages })
+    body: JSON.stringify({
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...messages],
+      function: 'collect_petition'
+    })
+
   })
   if (!res.ok) throw new Error(`Chat request failed: ${res.status}`)
   return res.json()
@@ -23,8 +28,8 @@ export async function sendChat(
 export async function generatePDF(
   data: PetitionData
 ): Promise<PDFResponse> {
-  const res = await fetch(`${API_BASE_URL}/generate`, {
-    method: 'POST',
+const res = await fetch(`${API_BASE_URL}/pdf`, {
+  method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   })

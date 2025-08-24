@@ -12,6 +12,9 @@ export const WIZARD_STEPS: WizardStep[] = [
   'download'
 ]
 
+export const SYSTEM_PROMPT = `You are a trauma-informed assistant helping Texans draft protective order petitions. Ask empathetic questions one at a time. Collect required fields: petitioner_full_name, respondent_full_name, and county. Use the function call collect_petition to return any gathered fields as JSON. Provide legal context and support.`
+
+
 export const FIELD_LABELS: Record<keyof PetitionData, string> = {
   county: 'County',
   case_no: 'Case Number',
