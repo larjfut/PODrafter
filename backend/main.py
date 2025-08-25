@@ -7,6 +7,7 @@ AcroForm templates before being returned as a ZIP file.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import html
 import io
@@ -76,6 +77,7 @@ TEMPLATE_CHECKSUMS: dict[str, str] = {
 # IP -> {timestamp_id: request_time}
 fallback_store: dict[str, dict[str, float]] = {}
 fallback_active = False
+fallback_lock = asyncio.Lock()
 FALLBACK_MAX_IPS = 1000
 FALLBACK_IP_TTL = RATE_WINDOW * 5
 
@@ -138,7 +140,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
       try:
         await redis_client.ping()
         fallback_active = False
-        fallback_store.clear()
+        async with fallback_lock:
+          fallback_store.clear()
         logger.info("Redis connection restored; using Redis store")
       except Exception as exc:
         logger.debug("Redis ping failed during fallback: %s", exc)
@@ -156,38 +159,40 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return response
       except Exception as exc:
         fallback_active = True
-        fallback_store.clear()
+        async with fallback_lock:
+          fallback_store.clear()
         logger.warning(
           "Rate limiter store error: %s; using in-memory fallback", exc
         )
 
     # Fallback in-memory rate limiting
     window_start = now - RATE_WINDOW
-    timestamps = fallback_store.setdefault(ip, {})
-    for ts_key, ts in list(timestamps.items()):
-      if ts < window_start:
-        del timestamps[ts_key]
-    if len(timestamps) >= RATE_LIMIT:
-      return JSONResponse(status_code=429, content={"detail": "Too many requests"})
-    timestamps[str(now)] = now
-    # Cleanup expired entries and evict stale IPs
-    for ip_key, times in list(fallback_store.items()):
-      for ts_key, ts in list(times.items()):
+    async with fallback_lock:
+      timestamps = fallback_store.setdefault(ip, {})
+      for ts_key, ts in list(timestamps.items()):
         if ts < window_start:
-          del times[ts_key]
-      last_seen = max(times.values()) if times else 0
-      if not times or last_seen < now - FALLBACK_IP_TTL:
-        del fallback_store[ip_key]
+          del timestamps[ts_key]
+      if len(timestamps) >= RATE_LIMIT:
+        return JSONResponse(status_code=429, content={"detail": "Too many requests"})
+      timestamps[str(now)] = now
+      # Cleanup expired entries and evict stale IPs
+      for ip_key, times in list(fallback_store.items()):
+        for ts_key, ts in list(times.items()):
+          if ts < window_start:
+            del times[ts_key]
+        last_seen = max(times.values()) if times else 0
+        if not times or last_seen < now - FALLBACK_IP_TTL:
+          del fallback_store[ip_key]
 
-    # Enforce max IP cache size
-    if len(fallback_store) > FALLBACK_MAX_IPS:
-      sorted_ips = sorted(
-        fallback_store.items(),
-        key=lambda item: max(item[1].values()) if item[1] else 0,
-      )
-      while len(sorted_ips) > FALLBACK_MAX_IPS:
-        old_ip, _ = sorted_ips.pop(0)
-        fallback_store.pop(old_ip, None)
+      # Enforce max IP cache size
+      if len(fallback_store) > FALLBACK_MAX_IPS:
+        sorted_ips = sorted(
+          fallback_store.items(),
+          key=lambda item: max(item[1].values()) if item[1] else 0,
+        )
+        while len(sorted_ips) > FALLBACK_MAX_IPS:
+          old_ip, _ = sorted_ips.pop(0)
+          fallback_store.pop(old_ip, None)
 
     response = await call_next(request)
     response.headers["X-RateLimit-Store"] = "memory"

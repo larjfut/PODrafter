@@ -190,3 +190,22 @@ def test_fallback_store_cleared_on_recovery(monkeypatch):
     assert main.fallback_store == {}
 
   asyncio.run(_run())
+
+
+def test_concurrent_requests_enforce_limit(monkeypatch):
+  async def _run():
+    monkeypatch.setattr(main, 'RATE_LIMIT', 5)
+    main.fallback_active = True
+    async with httpx.AsyncClient(
+      transport=httpx.ASGITransport(app=main.app, client=('1.1.1.1', 0)),
+      base_url='http://testserver'
+    ) as client:
+      async def hit():
+        return await client.get('/health')
+      tasks = [asyncio.create_task(hit()) for _ in range(6)]
+      results = await asyncio.gather(*tasks)
+    statuses = [r.status_code for r in results]
+    assert statuses.count(200) == 5
+    assert statuses.count(429) == 1
+
+  asyncio.run(_run())
