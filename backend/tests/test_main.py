@@ -2,6 +2,7 @@ import os
 import io
 import zipfile
 import asyncio
+import json
 import httpx
 from openai.resources.chat.completions import AsyncCompletions
 from PyPDF2 import PdfReader
@@ -167,7 +168,67 @@ def test_chat_endpoint(monkeypatch):
             headers={"X-API-Key": "test-key"},
         )
     assert resp.status_code == 200
-    assert resp.json() == {"role": "assistant", "content": "hi", "data": {}}
+    assert resp.json() == {
+        "messages": messages + [{"role": "assistant", "content": "hi"}],
+        "upserts": [],
+    }
+
+  asyncio.run(_run())
+
+
+def test_chat_returns_upserts(monkeypatch):
+  async def fake_create(self, *args, **kwargs):
+    class FakeCall:
+      function = type(
+        "Func",
+        (),
+        {
+          "name": "upsert_petition",
+          "arguments": json.dumps(
+            {
+              "county": "Harris",
+              "source_msg_id": "m1",
+              "confidence": 0.9,
+            }
+          ),
+        },
+      )
+
+    class FakeMessage:
+      role = "assistant"
+      content = "hi"
+      tool_calls = [FakeCall()]
+
+      def model_dump(self):
+        return {"role": self.role, "content": self.content}
+
+    class FakeResponse:
+      choices = [type("Choice", (), {"message": FakeMessage()})()]
+
+    return FakeResponse()
+
+  async def _run():
+    monkeypatch.setattr(AsyncCompletions, "create", fake_create)
+    messages = [{"role": "user", "content": "hello"}]
+    async with httpx.AsyncClient(
+      transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+      resp = await client.post(
+        "/api/chat",
+        json={"messages": messages},
+        headers={"X-API-Key": "test-key"},
+      )
+    assert resp.status_code == 200
+    assert resp.json() == {
+      "messages": messages + [{"role": "assistant", "content": "hi"}],
+      "upserts": [
+        {
+          "county": "Harris",
+          "source_msg_id": "m1",
+          "confidence": 0.9,
+        }
+      ],
+    }
 
   asyncio.run(_run())
 
