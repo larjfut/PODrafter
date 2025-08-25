@@ -5,6 +5,10 @@ import Page from '../src/routes/+page.svelte'
 describe('Page', () => {
   it('renders heading', () => {
     render(Page)
-    expect(screen.getByText('PO Drafter Chat Wizard')).toBeInTheDocument()
+    const heading = screen.getByRole('heading', {
+      level: 1,
+      name: 'PO Drafter Chat Wizard'
+    })
+    expect(heading).toBeInTheDocument()
   })
 })
