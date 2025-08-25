@@ -7,12 +7,14 @@ export const API_BASE_URL = sanitizeBaseUrl(
 
 export const CHAT_API_KEY = import.meta.env.PUBLIC_CHAT_API_KEY
 
-export const WIZARD_STEPS: any = [
+export const WIZARD_STEPS: { step: WizardStep, title: string }[] = [
   { step: 'chat', title: 'Tell Your Story' },
   { step: 'review', title: 'Review Details' },
   { step: 'generate', title: 'Create Document' },
   { step: 'download', title: 'Download' }
 ]
+
+export const WIZARD_STEP_KEYS: WizardStep[] = WIZARD_STEPS.map(({ step }) => step)
 
 export const FIELD_LABELS: Record<keyof PetitionData, string> = {
   county: 'County',
