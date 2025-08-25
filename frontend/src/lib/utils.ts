@@ -9,7 +9,6 @@ import type {
 import {
   API_BASE_URL,
   REQUIRED_FIELDS,
-  SYSTEM_PROMPT,
   CHAT_API_KEY
 } from './constants'
 
@@ -17,10 +16,7 @@ export async function sendChat(
   messages: ChatMessage[]
 ): Promise<ChatResponse> {
   const payload = {
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      ...messages.map(m => ({ role: m.role, content: m.content }))
-    ]
+    messages: messages.map(m => ({ role: m.role, content: m.content }))
   }
   try {
     const res = await fetch(`${API_BASE_URL}/chat`, {
