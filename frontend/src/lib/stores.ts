@@ -5,7 +5,7 @@ import type {
   ChatMessage,
   WizardStep
 } from './types'
-import { WIZARD_STEPS } from './constants'
+import { WIZARD_STEP_KEYS } from './constants'
 
 export const petitionData = writable<PetitionData>({
   county: 'General',
@@ -28,16 +28,16 @@ export function goToStep(step: WizardStep) {
 
 export function nextStep() {
   appState.update(state => {
-    const idx = WIZARD_STEPS.indexOf(state.currentStep)
-    const next = WIZARD_STEPS[idx + 1] ?? state.currentStep
+    const idx = WIZARD_STEP_KEYS.indexOf(state.currentStep)
+    const next = WIZARD_STEP_KEYS[idx + 1] ?? state.currentStep
     return { ...state, currentStep: next }
   })
 }
 
 export function prevStep() {
   appState.update(state => {
-    const idx = WIZARD_STEPS.indexOf(state.currentStep)
-    const prev = WIZARD_STEPS[idx - 1] ?? state.currentStep
+    const idx = WIZARD_STEP_KEYS.indexOf(state.currentStep)
+    const prev = WIZARD_STEP_KEYS[idx - 1] ?? state.currentStep
     return { ...state, currentStep: prev }
   })
 }
