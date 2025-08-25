@@ -29,7 +29,7 @@ export async function sendChat(
 export async function generatePDF(
   data: PetitionData
 ): Promise<PDFResponse> {
-  const res = await fetch(`${API_BASE_URL}/generate`, {
+  const res = await fetch(`${API_BASE_URL}/pdf`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
