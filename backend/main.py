@@ -439,6 +439,48 @@ async def generate_pdf(data: dict) -> StreamingResponse:
 
 # ✅ Add your OpenAI chat endpoint below
 
+SYSTEM_PROMPT = """You are a trauma-informed legal assistant helping create protective order petitions in Texas. You are compassionate, patient, and professional.
+
+CORE RESPONSIBILITIES:
+1. Ask trauma-informed questions to gather required petition information
+2. ALWAYS call set_petition_data when you learn ANY petition details
+3. Guide users through required fields: county, petitioner_full_name, respondent_full_name
+4. Provide emotional support and brief legal context
+5. Maintain a caring, non-judgmental tone throughout
+
+TRAUMA-INFORMED APPROACH:
+- Let them share at their own pace
+- Acknowledge their courage: "Taking this step shows real strength"
+- Validate their feelings: "I understand this is difficult"
+- Be patient and never rush them
+- Explain why you need certain information
+
+INFORMATION TO COLLECT:
+- county (required): Harris, Dallas, Travis, or General for other Texas counties
+- petitioner_full_name (required): Their full legal name as on ID
+- respondent_full_name (required): Full name of person they need protection from
+- petitioner_address (optional): Safe mailing address
+- petitioner_phone (optional): Contact number
+- petitioner_email (optional): Email for court notifications
+- firearm_surrender (optional): Whether respondent should surrender firearms
+
+FUNCTION CALLING RULES:
+- Call set_petition_data IMMEDIATELY when learning any information
+- Even partial info (like first name only) should be saved, then updated later
+- Always acknowledge what you've recorded: "I've noted that information"
+- Update fields when you get more complete information
+
+CONVERSATION FLOW:
+1. Welcome warmly and ask about their safety
+2. Ask which county they want to file in
+3. Ask for their name when ready
+4. Gently ask about the other person's name
+5. Collect additional details as they share their story
+6. Provide encouragement throughout
+
+Remember: You're helping someone take a critical step toward safety. Be gentle, patient, and supportive."""
+
+
 class Message(BaseModel):
   role: Literal["user", "assistant", "system"]
   content: str
@@ -498,7 +540,7 @@ TOOLS = [
   {
     "type": "function",
     "function": {
-      "name": "upsert_petition",
+      "name": "set_petition_data",
       "description": "Upsert petition fields extracted from conversation",
       "parameters": {
         "type": "object",
@@ -549,15 +591,19 @@ async def chat(chat_request: ChatRequest, request: Request) -> ChatResponse:
       if pattern.search(msg.content):
         raise HTTPException(status_code=400, detail="Invalid content")
 
-  messages = [
+  user_messages = [
     {"role": msg.role, "content": sanitize_string(msg.content)}
     for msg in chat_request.messages
+  ]
+  openai_messages = [
+    {"role": "system", "content": SYSTEM_PROMPT},
+    *user_messages,
   ]
 
   try:
     response = await client.chat.completions.create(
       model="gpt-4o",
-      messages=messages,
+      messages=openai_messages,
       temperature=0.7,
       tools=TOOLS,
       tool_choice="auto",
@@ -565,20 +611,29 @@ async def chat(chat_request: ChatRequest, request: Request) -> ChatResponse:
     msg = response.choices[0].message
     upserts: list[Upsert] = []
     for call in getattr(msg, "tool_calls", []) or []:
-      if call.function.name == "upsert_petition":
-        try:
-          raw = json.loads(call.function.arguments)
-        except json.JSONDecodeError:
-          logger.debug("Invalid JSON in tool call arguments")
-          continue
-        try:
-          upserts.append(Upsert(**raw))
-        except Exception as exc:
-          logger.debug("Invalid upsert payload: %s", exc)
+      name = getattr(getattr(call, "function", None), "name", "")
+      if name not in {"set_petition_data", "upsert_petition"}:
+        continue
+      arguments = getattr(getattr(call, "function", None), "arguments", "{}") or "{}"
+      try:
+        raw = json.loads(arguments)
+      except json.JSONDecodeError:
+        logger.debug("invalid JSON in tool call arguments", extra={"function": name})
+        continue
+      logger.info("extracted petition data", extra={"fields": list(raw.keys())})
+      try:
+        upserts.append(Upsert(**raw))
+      except Exception as exc:
+        logger.debug(
+          "invalid upsert payload",
+          extra={"error": str(exc), "fields": list(raw.keys())},
+        )
     assistant_message = {"role": "assistant", "content": sanitize_string(msg.content or "")}
-    full_messages = [Message(**m) for m in messages + [assistant_message]]
+    full_messages = [Message(**m) for m in user_messages + [assistant_message]]
     result = ChatResponse(messages=full_messages, upserts=upserts)
     return JSONResponse(content=result.model_dump(exclude_none=True))
+  except HTTPException:
+    raise
   except Exception as e:
     logger.exception("chat endpoint failed", exc_info=e)
     raise HTTPException(status_code=500, detail="Internal server error") from e
