@@ -66,8 +66,8 @@ Copy `.env.example` to `.env` and set these keys:
 | `ALLOWED_ORIGINS` | comma‑separated list of allowed CORS origins (exact URLs; wildcards `*` forbidden) | `http://localhost:5173` |
 | `PUBLIC_API_BASE_URL` | Base path for the backend API | `/api` |
 | `REDIS_URL` | Redis connection string for rate limiting | `redis://localhost:6379/0` |
-| `CHAT_API_KEY` | shared secret for `/api/chat`; sent via `X-API-Key` header | – |
-| `PUBLIC_CHAT_API_KEY` | frontend copy of `CHAT_API_KEY`; must match `CHAT_API_KEY` in development | – |
+| `CHAT_API_KEY` | shared secret for `/api/chat`; sent via `X-API-Key` header (required in non-development) | – |
+| `PUBLIC_CHAT_API_KEY` | frontend copy of `CHAT_API_KEY`; must match `CHAT_API_KEY` | – |
 
 Only exact origins are accepted. Separate multiple entries with commas and avoid wildcards (`*`), which are rejected for security.
 
@@ -75,7 +75,7 @@ Only exact origins are accepted. Separate multiple entries with commas and avoid
 
 Requests to `/api/chat` must include an `X-API-Key` header matching `CHAT_API_KEY`. The frontend reads this value from `PUBLIC_CHAT_API_KEY` at build time and attaches it to requests.
 
-For local development, set both `CHAT_API_KEY` and `PUBLIC_CHAT_API_KEY` in `.env` to the same value; mismatched keys will return **401 Unauthorized**. If `CHAT_API_KEY` is unset, the backend falls back to `PUBLIC_CHAT_API_KEY` to simplify local setup. In production, configure the backend's `CHAT_API_KEY` and provide `PUBLIC_CHAT_API_KEY` during the frontend build so the browser sends the correct header.
+Set both `CHAT_API_KEY` and `PUBLIC_CHAT_API_KEY` in `.env` to the same value during development; mismatched keys will return **401 Unauthorized**. The backend raises a runtime error if `CHAT_API_KEY` is missing when `ENVIRONMENT` is not `"development"`. Provide `CHAT_API_KEY` in your deployment environment and ensure `PUBLIC_CHAT_API_KEY` is supplied during the frontend build so the browser sends the correct header.
 
 ### Request size limits
 

@@ -6,6 +6,10 @@
 app = 'podrafter'
 primary_region = 'dfw'
 
+[env]
+  ENVIRONMENT = "production"
+  CHAT_API_KEY = "change-me"
+
 [http_service]
   internal_port = 8080
   force_https = true

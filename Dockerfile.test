@@ -21,6 +21,9 @@ COPY schema /app/schema
 # Configure resource paths
 ENV FORMS_DIR=/app/forms/standard
 ENV SCHEMA_PATH=/app/schema/petition.schema.json
+ENV ENVIRONMENT=production
+ARG CHAT_API_KEY
+ENV CHAT_API_KEY=${CHAT_API_KEY}
 
 # Launch the app with Uvicorn on port 8080
 CMD ["uvicorn", "backend.main:app", "--host=0.0.0.0", "--port=8080"]
