@@ -157,6 +157,9 @@
         <div
           class="chat-area mb-4 h-64 overflow-y-auto border p-2 rounded"
           bind:this={chatContainer}
+          aria-live="polite"
+          role="log"
+          aria-atomic="false"
         >
           {#each $chatMessages as msg}
             <div
