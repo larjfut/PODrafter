@@ -7,8 +7,8 @@ from backend.main import TEMPLATE_CHECKSUMS, FORMS_DIR
 
 
 def test_template_checksums():
+  expected: dict[str, str] = {}
   for path in FORMS_DIR.glob("*.pdf"):
     with open(path, "rb") as f:
-      actual = hashlib.sha256(f.read()).hexdigest()
-    expected = TEMPLATE_CHECKSUMS.get(path.name)
-    assert expected == actual, f"{path.name} checksum mismatch"
+      expected[path.name] = hashlib.sha256(f.read()).hexdigest()
+  assert TEMPLATE_CHECKSUMS == expected
