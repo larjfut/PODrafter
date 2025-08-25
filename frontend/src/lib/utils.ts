@@ -4,28 +4,28 @@ import type {
   PetitionData,
   PDFResponse,
   ValidationError,
-  ValidationResult
+  ValidationResult,
 } from './types'
-import {
-  API_BASE_URL,
-  REQUIRED_FIELDS,
-  CHAT_API_KEY
-} from './constants'
+import { API_BASE_URL, REQUIRED_FIELDS, CHAT_API_KEY } from './constants'
 
 export async function sendChat(
-  messages: ChatMessage[]
+  messages: ChatMessage[],
+  timeoutMs = 10000,
 ): Promise<ChatResponse> {
   const payload = {
-    messages: messages.map(m => ({ role: m.role, content: m.content }))
+    messages: messages.map((m) => ({ role: m.role, content: m.content })),
   }
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
     const res = await fetch(`${API_BASE_URL}/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(CHAT_API_KEY ? { 'X-API-Key': CHAT_API_KEY } : {})
+        ...(CHAT_API_KEY ? { 'X-API-Key': CHAT_API_KEY } : {}),
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal: controller.signal,
     })
     if (!res.ok) {
       const text = await res.text().catch(() => '')
@@ -34,17 +34,17 @@ export async function sendChat(
     return res.json()
   } catch (err) {
     throw err
+  } finally {
+    clearTimeout(timer)
   }
 }
 
-export async function generatePDF(
-  data: PetitionData
-): Promise<PDFResponse> {
+export async function generatePDF(data: PetitionData): Promise<PDFResponse> {
   try {
     const res = await fetch(`${API_BASE_URL}/pdf`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     })
     if (!res.ok) return { success: false, error: `Status ${res.status}` }
     const blob = await res.blob()
@@ -55,25 +55,25 @@ export async function generatePDF(
   }
 }
 
-export function getCollectedFields(
-  data: PetitionData
-): {
+export function getCollectedFields(data: PetitionData): {
   collected: (keyof PetitionData)[]
   missing: (keyof PetitionData)[]
   requiredMissing: (keyof PetitionData)[]
 } {
   const allFields = Object.keys(data) as (keyof PetitionData)[]
-  const collected = allFields.filter(field => {
+  const collected = allFields.filter((field) => {
     const value = data[field]
     return value !== undefined && value !== null && value !== ''
   })
-  const missing = allFields.filter(field => !collected.includes(field))
-  const requiredMissing = REQUIRED_FIELDS.filter(field => !collected.includes(field))
+  const missing = allFields.filter((field) => !collected.includes(field))
+  const requiredMissing = REQUIRED_FIELDS.filter(
+    (field) => !collected.includes(field),
+  )
   return { collected, missing, requiredMissing }
 }
 
 export function getNextSuggestedField(
-  data: PetitionData
+  data: PetitionData,
 ): keyof PetitionData | null {
   const { collected } = getCollectedFields(data)
   const priorityOrder: (keyof PetitionData)[] = [
@@ -82,7 +82,7 @@ export function getNextSuggestedField(
     'respondent_full_name',
     'petitioner_address',
     'petitioner_phone',
-    'petitioner_email'
+    'petitioner_email',
   ]
   for (const field of priorityOrder) {
     if (!collected.includes(field)) return field
@@ -95,20 +95,18 @@ export function canProceedToReview(data: PetitionData): boolean {
   return validation.isValid
 }
 
-export function validatePetition(
-  data: PetitionData
-): ValidationResult {
+export function validatePetition(data: PetitionData): ValidationResult {
   const { collected, requiredMissing } = getCollectedFields(data)
-  const errors: ValidationError[] = requiredMissing.map(field => ({
+  const errors: ValidationError[] = requiredMissing.map((field) => ({
     field,
-    message: `${field} is required`
+    message: `${field} is required`,
   }))
   const completionPercentage = Math.round(
-    (collected.length / Object.keys(data).length) * 100
+    (collected.length / Object.keys(data).length) * 100,
   )
   return {
     isValid: errors.length === 0,
     errors,
-    completionPercentage
+    completionPercentage,
   }
 }

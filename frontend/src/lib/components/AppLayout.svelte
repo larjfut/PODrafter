@@ -74,7 +74,7 @@
     appState.update(s => ({ ...s, isLoading: true, error: undefined }))
 
     try {
-      const response = await sendChat(get(chatMessages))
+      const response = await sendChat(get(chatMessages), 10000)
 
       // Extract and merge petition data
       if (response.data && Object.keys(response.data).length > 0) {
