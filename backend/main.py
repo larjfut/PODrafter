@@ -310,6 +310,13 @@ app.add_middleware(
 )
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["127.0.0.1"])
 
+@app.middleware("http")
+async def set_security_headers(request: Request, call_next):
+  response = await call_next(request)
+  response.headers["Content-Security-Policy"] = "default-src 'self'"
+  response.headers["X-Content-Type-Options"] = "nosniff"
+  return response
+
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
