@@ -123,7 +123,9 @@ def test_pdf_generation(monkeypatch):
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://testserver"
     ) as client:
-        resp = await client.post("/pdf", json=data)
+        resp = await client.post(
+            "/pdf", json=data, headers={"X-API-Key": "test-key"}
+        )
     assert resp.status_code == 200
     with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
         pdf_bytes = zf.read("petition.pdf")
@@ -138,6 +140,50 @@ def test_pdf_generation(monkeypatch):
         "PetitionerEmail": "jane@example.com",
         "RespondentName": "John Doe",
     }
+
+  asyncio.run(_run())
+
+
+def test_pdf_missing_api_key():
+  async def _run():
+    data = {
+        "county": "General",
+        "case_no": "123",
+        "hearing_date": "2024-01-01",
+        "petitioner_full_name": "Jane Doe",
+        "petitioner_address": "1 Main St",
+        "petitioner_phone": "555-0000",
+        "petitioner_email": "jane@example.com",
+        "respondent_full_name": "John Doe",
+    }
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        resp = await client.post("/pdf", json=data)
+    assert resp.status_code == 401
+
+  asyncio.run(_run())
+
+
+def test_pdf_invalid_api_key():
+  async def _run():
+    data = {
+        "county": "General",
+        "case_no": "123",
+        "hearing_date": "2024-01-01",
+        "petitioner_full_name": "Jane Doe",
+        "petitioner_address": "1 Main St",
+        "petitioner_phone": "555-0000",
+        "petitioner_email": "jane@example.com",
+        "respondent_full_name": "John Doe",
+    }
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        resp = await client.post(
+            "/pdf", json=data, headers={"X-API-Key": "wrong"}
+        )
+    assert resp.status_code == 401
 
   asyncio.run(_run())
 
@@ -331,7 +377,9 @@ def test_pdf_invalid_schema():
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://testserver"
     ) as client:
-        resp = await client.post("/pdf", json=data)
+        resp = await client.post(
+            "/pdf", json=data, headers={"X-API-Key": "test-key"}
+        )
     assert resp.status_code == 400
 
   asyncio.run(_run())
