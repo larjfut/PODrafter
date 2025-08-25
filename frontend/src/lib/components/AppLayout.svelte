@@ -78,7 +78,6 @@
 
       // Extract and merge petition data
       if (response.data && Object.keys(response.data).length > 0) {
-        console.log('Extracting petition data:', response.data)
         petitionData.update(current => {
           const updated = { ...current }
           for (const [key, value] of Object.entries(response.data!)) {
@@ -99,7 +98,7 @@
 
       chatMessages.update(m => [...m, assistantMsg])
     } catch (err) {
-      console.error('Chat error:', err)
+      if (import.meta.env.DEV) console.error('Chat error:', err)
       const errorMsg = err instanceof Error ? err.message : 'Chat request failed'
       appState.update(s => ({ ...s, error: errorMsg }))
     } finally {
