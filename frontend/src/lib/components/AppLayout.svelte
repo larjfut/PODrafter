@@ -230,8 +230,9 @@
     <div class="mb-4">
       {#each fieldEntries as [field, label]}
         <div class="mb-2">
-          <label class="font-bold">{label}</label>
+          <label class="font-bold" for={`${field}-input`}>{label}</label>
           <input
+            id={`${field}-input`}
             class="w-full border p-2 rounded"
             value={$petitionData[field] ?? ''}
             on:input={(e) =>
