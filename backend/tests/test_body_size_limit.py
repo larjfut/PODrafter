@@ -40,7 +40,10 @@ def test_chunked_request_too_large():
       resp = await client.post(
         "/pdf",
         content=gen(),
-        headers={"Content-Type": "application/json"},
+        headers={
+          "Content-Type": "application/json",
+          "X-API-Key": "test-key",
+        },
       )
     assert resp.status_code == 413
 

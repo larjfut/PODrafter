@@ -372,8 +372,15 @@ async def redis_health():
 
 
 @app.post("/pdf")
-async def generate_pdf(data: dict) -> StreamingResponse:
+async def generate_pdf(data: dict, request: Request) -> StreamingResponse:
     """Generate PDF packet from petition data."""
+    provided = request.headers.get("X-API-Key")
+    if CHAT_API_KEY is None:
+        logger.error("CHAT_API_KEY is not set")
+        raise HTTPException(status_code=500, detail="Server misconfiguration")
+    if not provided or provided != CHAT_API_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
     if not isinstance(data, dict):
         raise HTTPException(status_code=400, detail="Invalid request body")
 
