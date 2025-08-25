@@ -448,12 +448,58 @@ class ChatRequest(BaseModel):
   messages: list[Message]
 
 
+class Upsert(BaseModel):
+  source_msg_id: str
+  confidence: float
+  county: str | None = None
+  case_no: str | None = None
+  hearing_date: str | None = None
+  petitioner_full_name: str | None = None
+  petitioner_address: str | None = None
+  petitioner_phone: str | None = None
+  petitioner_email: str | None = None
+  respondent_full_name: str | None = None
+  firearm_surrender: bool | None = None
+
+  @field_validator(
+    "county",
+    "case_no",
+    "hearing_date",
+    "petitioner_full_name",
+    "petitioner_address",
+    "petitioner_phone",
+    "petitioner_email",
+    "respondent_full_name",
+    "source_msg_id",
+    mode="before",
+  )
+  @classmethod
+  def sanitize_fields(cls, v: str | None) -> str | None:
+    if v is None:
+      return None
+    return sanitize_string(v)
+
+  @field_validator("confidence")
+  @classmethod
+  def validate_confidence(cls, v: float) -> float:
+    if v < 0 or v > 1:
+      raise ValueError("confidence must be between 0 and 1")
+    return v
+
+  model_config = {"ser_json_exclude_none": True}
+
+
+class ChatResponse(BaseModel):
+  messages: list[Message]
+  upserts: list[Upsert]
+
+
 TOOLS = [
   {
     "type": "function",
     "function": {
-      "name": "set_petition_data",
-      "description": "Store petition data fields provided by the user",
+      "name": "upsert_petition",
+      "description": "Upsert petition fields extracted from conversation",
       "parameters": {
         "type": "object",
         "properties": {
@@ -469,15 +515,22 @@ TOOLS = [
           "petitioner_email": {"type": "string"},
           "respondent_full_name": {"type": "string"},
           "firearm_surrender": {"type": "boolean"},
+          "source_msg_id": {"type": "string"},
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+          },
         },
+        "required": ["source_msg_id", "confidence"],
         "additionalProperties": False,
       },
     },
   }
 ]
 
-@app.post("/api/chat")
-async def chat(chat_request: ChatRequest, request: Request):
+@app.post("/api/chat", response_model=ChatResponse)
+async def chat(chat_request: ChatRequest, request: Request) -> ChatResponse:
   provided = request.headers.get("X-API-Key")
   if CHAT_API_KEY is None:
     logger.error("CHAT_API_KEY is not set")
@@ -510,16 +563,22 @@ async def chat(chat_request: ChatRequest, request: Request):
       tool_choice="auto",
     )
     msg = response.choices[0].message
-    data: dict[str, str | bool] = {}
+    upserts: list[Upsert] = []
     for call in getattr(msg, "tool_calls", []) or []:
-      if call.function.name == "set_petition_data":
+      if call.function.name == "upsert_petition":
         try:
-          data.update(json.loads(call.function.arguments))
+          raw = json.loads(call.function.arguments)
         except json.JSONDecodeError:
           logger.debug("Invalid JSON in tool call arguments")
-    result = msg.model_dump()
-    result["data"] = data
-    return result
+          continue
+        try:
+          upserts.append(Upsert(**raw))
+        except Exception as exc:
+          logger.debug("Invalid upsert payload: %s", exc)
+    assistant_message = {"role": "assistant", "content": sanitize_string(msg.content or "")}
+    full_messages = [Message(**m) for m in messages + [assistant_message]]
+    result = ChatResponse(messages=full_messages, upserts=upserts)
+    return JSONResponse(content=result.model_dump(exclude_none=True))
   except Exception as e:
     logger.exception("chat endpoint failed", exc_info=e)
     raise HTTPException(status_code=500, detail="Internal server error") from e

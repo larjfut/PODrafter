@@ -33,8 +33,12 @@ def app(monkeypatch):
 def test_public_key_fallback(monkeypatch, app):
   async def fake_create(self, *args, **kwargs):
     class Msg:
+      role = "assistant"
+      content = "hi"
+      tool_calls = []
+
       def model_dump(self):
-        return {"role": "assistant", "content": "hi"}
+        return {"role": self.role, "content": self.content}
 
     class Choice:
       message = Msg()
