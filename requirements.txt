@@ -10,3 +10,4 @@ redis==5.0.1
 fakeredis==2.21.0
 bleach==6.1.0
 prometheus-client==0.20.0
+structlog==24.1.0

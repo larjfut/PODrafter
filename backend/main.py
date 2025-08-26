@@ -1,3 +1,7 @@
+from .utils.logging import configure_logging
+
+configure_logging()
+
 import time
 from PyPDF2 import PdfReader, PdfWriter
 from fastapi import FastAPI

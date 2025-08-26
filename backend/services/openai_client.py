@@ -1,9 +1,9 @@
-import logging
 import os
 
+import structlog
 from openai import AsyncOpenAI
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
@@ -25,6 +25,5 @@ async def validate_environment() -> None:
   try:
     await client.models.list()
   except Exception as exc:
-    msg = f"OpenAI connectivity check failed: {exc}"
-    logger.error(msg)
-    raise RuntimeError(msg) from exc
+    logger.error("OpenAI connectivity check failed", error=str(exc))
+    raise RuntimeError(f"OpenAI connectivity check failed: {exc}") from exc
