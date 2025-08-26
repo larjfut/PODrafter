@@ -38,6 +38,7 @@ export interface ChatResponse {
 export interface PDFResponse {
   success: boolean
   fileUrl?: string
+  revoke?: () => void
   error?: string
 }
 
