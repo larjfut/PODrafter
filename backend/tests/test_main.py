@@ -141,7 +141,7 @@ def test_pdf_generation(monkeypatch):
         transport=httpx.ASGITransport(app=app), base_url="http://testserver"
     ) as client:
         resp = await client.post(
-            "/pdf", json=data, headers={"X-API-Key": "test-key"}
+            "/api/pdf", json=data, headers={"X-API-Key": "test-key"}
         )
     assert resp.status_code == 200
     with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
@@ -176,7 +176,7 @@ def test_pdf_missing_api_key():
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://testserver"
     ) as client:
-        resp = await client.post("/pdf", json=data)
+        resp = await client.post("/api/pdf", json=data)
     assert resp.status_code == 401
 
   asyncio.run(_run())
@@ -198,7 +198,7 @@ def test_pdf_invalid_api_key():
         transport=httpx.ASGITransport(app=app), base_url="http://testserver"
     ) as client:
         resp = await client.post(
-            "/pdf", json=data, headers={"X-API-Key": "wrong"}
+            "/api/pdf", json=data, headers={"X-API-Key": "wrong"}
         )
     assert resp.status_code == 401
 
@@ -395,7 +395,7 @@ def test_pdf_invalid_schema():
         transport=httpx.ASGITransport(app=app), base_url="http://testserver"
     ) as client:
         resp = await client.post(
-            "/pdf", json=data, headers={"X-API-Key": "test-key"}
+            "/api/pdf", json=data, headers={"X-API-Key": "test-key"}
         )
     assert resp.status_code == 400
 
