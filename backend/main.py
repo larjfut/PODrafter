@@ -41,7 +41,7 @@ def create_app(rate_limiter: RateLimiterProtocol) -> FastAPI:
     CORSMiddleware,
     allow_origins=get_allowed_origins(),
     allow_methods=["POST", "GET"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type", "X-API-Key"],
   )
   app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["127.0.0.1"])
   app.middleware("http")(set_security_headers)
