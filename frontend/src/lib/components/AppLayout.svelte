@@ -68,6 +68,14 @@
     })
     pdfUrl.set(null)
     appState.set({ currentStep: 'chat', isLoading: false })
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(regs =>
+        regs.forEach(r => r.unregister())
+      )
+    }
+    if ('caches' in window) {
+      caches.keys().then(keys => keys.forEach(k => caches.delete(k)))
+    }
     window.location.href = 'https://www.google.com'
   }
 </script>
