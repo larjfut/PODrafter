@@ -81,6 +81,23 @@ For local development, set both `CHAT_API_KEY` and `PUBLIC_CHAT_API_KEY` in `.en
 
 The backend rejects bodies larger than `MAX_REQUEST_SIZE` (10 KB). Requests declaring a larger `Content-Length` receive a **413**. For chunked or streaming requests without `Content-Length`, the body is read incrementally and processing stops once the limit is exceeded, returning **413**.
 
+### Security headers
+
+The backend sends a strict Content Security Policy restricting all resource types to the same origin:
+
+```
+default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'
+```
+
+No external origins are required by default. If `PUBLIC_API_BASE_URL` points to another domain or you load assets from a CDN, include those origins in the relevant directives (e.g. `connect-src`).
+
+Additional headers:
+
+- `X-Frame-Options: DENY`
+- `Referrer-Policy: no-referrer`
+- `Permissions-Policy: geolocation=(), microphone=(), camera=()`
+- `X-Content-Type-Options: nosniff`
+
 ### Installing Test Dependencies
 
 Install Python packages for the micro‑service and Node packages for the SvelteKit front‑end before running tests.

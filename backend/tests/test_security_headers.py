@@ -38,8 +38,23 @@ def test_security_headers(path):
         transport=httpx.ASGITransport(app=app), base_url="http://testserver"
     ) as client:
         resp = await client.get(path)
-    assert resp.headers["content-security-policy"] == "default-src 'self'"
+    expected_csp = (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self'; "
+        "img-src 'self' data:; "
+        "connect-src 'self'; "
+        "font-src 'self'; "
+        "frame-ancestors 'none'"
+    )
+    assert resp.headers["content-security-policy"] == expected_csp
     assert resp.headers["x-content-type-options"] == "nosniff"
+    assert resp.headers["x-frame-options"] == "DENY"
+    assert resp.headers["referrer-policy"] == "no-referrer"
+    assert (
+        resp.headers["permissions-policy"]
+        == "geolocation=(), microphone=(), camera=()"
+    )
 
   asyncio.run(_run())
 
