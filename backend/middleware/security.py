@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from .auth import get_client_ip
+from .correlation import request_id
 from ..utils.validation import MAX_REQUEST_SIZE
 
 logger = logging.getLogger(__name__)
@@ -58,11 +59,12 @@ async def log_requests(request: Request, call_next):
     log_ip = "redacted" if path in SENSITIVE_PATHS else ip
     log_path = "redacted" if path in SENSITIVE_PATHS else path
     logger.exception(
-      "Error processing %s %s from %s in %.2fms",
+      "Error processing %s %s from %s in %.2fms [id=%s]",
       request.method,
       log_path,
       log_ip,
       duration,
+      request_id.get(None),
     )
     raise
   duration = (time.time() - start) * 1000
@@ -70,11 +72,12 @@ async def log_requests(request: Request, call_next):
   log_ip = "redacted" if path in SENSITIVE_PATHS else ip
   log_path = "redacted" if path in SENSITIVE_PATHS else path
   logger.info(
-    "%s %s from %s -> %s in %.2fms",
+    "%s %s from %s -> %s in %.2fms [id=%s]",
     request.method,
     log_path,
     log_ip,
     response.status_code,
     duration,
+    request_id.get(None),
   )
   return response

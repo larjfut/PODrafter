@@ -33,16 +33,33 @@ def _fake_redis(monkeypatch):
   monkeypatch.setattr("backend.main.redis_client", DummyRedis())
 
 
-def test_health():
-  async def _run():
-    async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
-    ) as client:
-        resp = await client.get("/health")
-    assert resp.status_code == 200
-    assert resp.json() == {"status": "ok"}
+  def test_health():
+    async def _run():
+      async with httpx.AsyncClient(
+          transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+      ) as client:
+          resp = await client.get("/health")
+      assert resp.status_code == 200
+      assert resp.json() == {"status": "ok"}
 
-  asyncio.run(_run())
+    asyncio.run(_run())
+
+
+  def test_correlation_id():
+    async def _run():
+      async with httpx.AsyncClient(
+          transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+      ) as client:
+          resp = await client.get("/health")
+      assert resp.headers.get("X-Correlation-ID")
+      correlation = "test-id"
+      async with httpx.AsyncClient(
+          transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+      ) as client:
+          resp = await client.get("/health", headers={"X-Correlation-ID": correlation})
+      assert resp.headers["X-Correlation-ID"] == correlation
+
+    asyncio.run(_run())
 
 
 def test_pdf_generation(monkeypatch):
