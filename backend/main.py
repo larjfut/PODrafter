@@ -64,7 +64,10 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 # Use PUBLIC_CHAT_API_KEY as fallback for local development
 CHAT_API_KEY = os.getenv("CHAT_API_KEY") or os.getenv("PUBLIC_CHAT_API_KEY")
 SENSITIVE_PATHS = {"/api/chat", "/pdf"}
-DISALLOWED_PATTERNS = [re.compile(p, re.IGNORECASE) for p in ["<script", "javascript:", "data:"]]
+DISALLOWED_PATTERNS = [
+  re.compile(p, re.IGNORECASE)
+  for p in ["<script", "javascript:", "data:", "vbscript:", "file:"]
+]
 
 # SHA256 checksums for standard form templates
 TEMPLATE_CHECKSUMS: dict[str, str] = {
