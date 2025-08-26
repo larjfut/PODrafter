@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { petitionData, appState, prevStep, nextStep } from '$lib/stores'
+  import { petitionData } from '$lib/stores/petitionStore'
+  import { appState, prevStep, nextStep } from '$lib/stores/progressStore'
+  import { validation } from '$lib/stores/validationStore'
   import { FIELD_LABELS } from '$lib/constants'
-  import { validatePetition } from '$lib/utils'
   import { get } from 'svelte/store'
   import type { PetitionData } from '$lib/types'
 
@@ -10,8 +11,8 @@
   ) as [keyof PetitionData, string][]
 
   function handleReviewNext() {
-    const validation = validatePetition(get(petitionData))
-    if (validation.isValid) {
+    const v = get(validation)
+    if (v.isValid) {
       appState.update(s => ({ ...s, error: undefined }))
       nextStep()
     } else {

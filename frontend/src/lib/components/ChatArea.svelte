@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { chatMessages, petitionData, appState } from '$lib/stores'
+  import { chatMessages, petitionData } from '$lib/stores/petitionStore'
+  import { appState } from '$lib/stores/progressStore'
   import { sendChat } from '$lib/utils'
   import type { ChatMessage } from '$lib/types'
   import { get } from 'svelte/store'
