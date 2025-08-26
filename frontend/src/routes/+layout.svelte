@@ -1,5 +1,9 @@
 <script>
   import '../app.css'
+  import ErrorBoundary from '$lib/components/ErrorBoundary.svelte'
 </script>
 
-<slot />
+<ErrorBoundary>
+  <slot />
+</ErrorBoundary>
+
