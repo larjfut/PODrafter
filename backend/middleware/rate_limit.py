@@ -2,6 +2,7 @@ import asyncio
 import os
 import time
 from collections import OrderedDict
+from typing import Dict
 
 import redis.asyncio as redis
 from fastapi.responses import JSONResponse
@@ -13,30 +14,65 @@ from .auth import get_client_ip
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 redis_client = redis.from_url(REDIS_URL, decode_responses=True)
 
-fallback_store: OrderedDict[str, dict[str, float]] = OrderedDict()
+class ThreadSafeRateLimiter:
+  def __init__(self) -> None:
+    self._store: OrderedDict[str, Dict[str, float]] = OrderedDict()
+    self._lock = asyncio.Lock()
+
+  async def record_request(
+    self,
+    ip: str,
+    now: float,
+    rate_limit: int,
+    rate_window: int,
+    fallback_ip_ttl: int,
+    fallback_max_ips: int,
+  ) -> bool:
+    async with self._lock:
+      return self._record_request_unsafe(
+        ip,
+        now,
+        rate_limit,
+        rate_window,
+        fallback_ip_ttl,
+        fallback_max_ips,
+      )
+
+  async def clear(self) -> None:
+    async with self._lock:
+      self._store.clear()
+
+  def _record_request_unsafe(
+    self,
+    ip: str,
+    now: float,
+    rate_limit: int,
+    rate_window: int,
+    fallback_ip_ttl: int,
+    fallback_max_ips: int,
+  ) -> bool:
+    window_start = now - rate_window
+    for ip_key, times in list(self._store.items()):
+      for ts_key, ts in list(times.items()):
+        if ts < window_start:
+          del times[ts_key]
+      last_seen = max(times.values()) if times else 0
+      if not times or last_seen < now - fallback_ip_ttl:
+        self._store.pop(ip_key, None)
+
+    timestamps = self._store.setdefault(ip, {})
+    if len(timestamps) >= rate_limit:
+      return False
+    timestamps[str(now)] = now
+    self._store.move_to_end(ip)
+    while len(self._store) > fallback_max_ips:
+      self._store.popitem(last=False)
+    return True
+
+
+fallback_limiter = ThreadSafeRateLimiter()
+fallback_store = fallback_limiter._store
 fallback_active = False
-fallback_lock = asyncio.Lock()
-
-
-def record_fallback_request(ip: str, now: float, rate_limit: int, rate_window: int,
-                            fallback_ip_ttl: int, fallback_max_ips: int) -> bool:
-  window_start = now - rate_window
-  for ip_key, times in list(fallback_store.items()):
-    for ts_key, ts in list(times.items()):
-      if ts < window_start:
-        del times[ts_key]
-    last_seen = max(times.values()) if times else 0
-    if not times or last_seen < now - fallback_ip_ttl:
-      fallback_store.pop(ip_key, None)
-
-  timestamps = fallback_store.setdefault(ip, {})
-  if len(timestamps) >= rate_limit:
-    return False
-  timestamps[str(now)] = now
-  fallback_store.move_to_end(ip)
-  while len(fallback_store) > fallback_max_ips:
-    fallback_store.popitem(last=False)
-  return True
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -52,15 +88,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     ip = get_client_ip(request)
     now = time.time()
     key = f"ratelimit:{ip}"
-    global fallback_store, fallback_active
+    global fallback_active
 
     if fallback_active:
       try:
         await redis_cli.ping()
         fallback_active = False
         main_module.fallback_active = False
-        async with fallback_lock:
-          fallback_store.clear()
+        await fallback_limiter.clear()
       except Exception:
         pass
 
@@ -78,12 +113,16 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
       except Exception:
         fallback_active = True
         main_module.fallback_active = True
-        async with fallback_lock:
-          fallback_store.clear()
+        await fallback_limiter.clear()
 
-    async with fallback_lock:
-      allowed = record_fallback_request(ip, now, rate_limit, rate_window,
-                                        fallback_ip_ttl, fallback_max_ips)
+    allowed = await fallback_limiter.record_request(
+      ip,
+      now,
+      rate_limit,
+      rate_window,
+      fallback_ip_ttl,
+      fallback_max_ips,
+    )
     main_module.fallback_active = fallback_active
     if not allowed:
       return JSONResponse(status_code=429, content={"detail": "Too many requests"})

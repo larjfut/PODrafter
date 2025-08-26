@@ -5,7 +5,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from .api import chat, pdf, health
-from .middleware.rate_limit import RateLimitMiddleware, redis_client, fallback_store, fallback_active
+from .middleware.rate_limit import (
+  RateLimitMiddleware,
+  redis_client,
+  fallback_store,
+  fallback_active,
+  fallback_limiter,
+)
 from .middleware.security import BodySizeLimitMiddleware, log_requests, set_security_headers
 from .utils.sanitization import sanitize_string, CoverLetterContext
 from .utils.validation import get_allowed_origins, reload_schema, MAX_REQUEST_SIZE
