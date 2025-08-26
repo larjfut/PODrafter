@@ -145,7 +145,26 @@
     pdfUrl.set(null)
     prevStep()
   }
+
+  function quickEscape() {
+    chatMessages.set([])
+    petitionData.set({
+      county: 'General',
+      petitioner_full_name: '',
+      respondent_full_name: ''
+    })
+    pdfUrl.set(null)
+    appState.set({ currentStep: 'chat', isLoading: false })
+    window.location.href = 'https://www.google.com'
+  }
 </script>
+
+<button
+  on:click={quickEscape}
+  class="fixed top-2 right-2 z-50 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded shadow-lg focus:outline-none focus:ring-2 focus:ring-red-800"
+>
+  Quick Escape
+</button>
 
 <div class="mx-auto p-4 max-w-4xl">
   {#if $appState.error}
