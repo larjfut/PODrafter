@@ -3,9 +3,11 @@ import asyncio
 import httpx
 import pytest
 import redis.asyncio as redis_asyncio
+from fastapi import Request
+from fastapi.responses import JSONResponse
 
 from backend.main import create_app
-from backend.middleware.rate_limit import InMemoryRateLimiter, RedisRateLimiter
+from backend.middleware.rate_limit import InMemoryRateLimiter, RedisRateLimiter, rate_limit
 
 
 class DummyRedis:
@@ -252,6 +254,47 @@ def test_concurrent_requests_enforce_limit():
     statuses = [r.status_code for r in results]
     assert statuses.count(200) == 5
     assert statuses.count(429) == 1
+
+  asyncio.run(_run())
+
+
+def test_route_specific_rate_limit(monkeypatch):
+  async def _run():
+    class DummyRedis:
+      async def zremrangebyscore(self, *args, **kwargs):
+        raise RuntimeError('down')
+
+      async def zcard(self, *args, **kwargs):
+        raise RuntimeError('down')
+
+      async def zadd(self, *args, **kwargs):
+        raise RuntimeError('down')
+
+      async def expire(self, *args, **kwargs):
+        raise RuntimeError('down')
+
+      async def ping(self, *args, **kwargs):
+        raise RuntimeError('down')
+
+    monkeypatch.setattr('backend.middleware.rate_limit.redis_client', DummyRedis())
+
+    limiter = InMemoryRateLimiter(100, 60, 300, 100)
+    app = create_app(limiter)
+
+    @app.get('/limited')
+    @rate_limit(limit=1, window=60, key='limited')
+    async def limited_endpoint(request: Request):
+      return JSONResponse({'ok': True})
+
+    async with httpx.AsyncClient(
+      transport=httpx.ASGITransport(app=app, client=('1.1.1.1', 0)),
+      base_url='http://testserver'
+    ) as client:
+      resp1 = await client.get('/limited')
+      resp2 = await client.get('/limited')
+    assert resp1.status_code == 200
+    assert resp1.headers['X-Route-RateLimit-Remaining'] == '0'
+    assert resp2.status_code == 429
 
   asyncio.run(_run())
 
