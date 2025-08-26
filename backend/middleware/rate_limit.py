@@ -2,7 +2,7 @@ import asyncio
 import os
 import time
 from collections import OrderedDict
-from typing import Dict
+from typing import Dict, Protocol, Tuple
 
 import redis.asyncio as redis
 from fastapi.responses import JSONResponse
@@ -14,118 +14,117 @@ from .auth import get_client_ip
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 redis_client = redis.from_url(REDIS_URL, decode_responses=True)
 
-class ThreadSafeRateLimiter:
-  def __init__(self) -> None:
-    self._store: OrderedDict[str, Dict[str, float]] = OrderedDict()
-    self._lock = asyncio.Lock()
 
-  async def record_request(
+class RateLimiterProtocol(Protocol):
+  async def record_request(self, ip: str, now: float) -> Tuple[bool, str]:
+    ...
+
+  async def clear(self) -> None:
+    ...
+
+
+class InMemoryRateLimiter:
+  def __init__(
     self,
-    ip: str,
-    now: float,
     rate_limit: int,
     rate_window: int,
     fallback_ip_ttl: int,
     fallback_max_ips: int,
-  ) -> bool:
+  ) -> None:
+    self.rate_limit = rate_limit
+    self.rate_window = rate_window
+    self.fallback_ip_ttl = fallback_ip_ttl
+    self.fallback_max_ips = fallback_max_ips
+    self._store: OrderedDict[str, Dict[str, float]] = OrderedDict()
+    self._lock = asyncio.Lock()
+
+  async def record_request(self, ip: str, now: float) -> Tuple[bool, str]:
     async with self._lock:
-      return self._record_request_unsafe(
-        ip,
-        now,
-        rate_limit,
-        rate_window,
-        fallback_ip_ttl,
-        fallback_max_ips,
-      )
+      allowed = self._record_request_unsafe(ip, now)
+    return allowed, "memory"
 
   async def clear(self) -> None:
     async with self._lock:
       self._store.clear()
 
-  def _record_request_unsafe(
-    self,
-    ip: str,
-    now: float,
-    rate_limit: int,
-    rate_window: int,
-    fallback_ip_ttl: int,
-    fallback_max_ips: int,
-  ) -> bool:
-    window_start = now - rate_window
+  def _record_request_unsafe(self, ip: str, now: float) -> bool:
+    window_start = now - self.rate_window
     for ip_key, times in list(self._store.items()):
       for ts_key, ts in list(times.items()):
         if ts < window_start:
           del times[ts_key]
       last_seen = max(times.values()) if times else 0
-      if not times or last_seen < now - fallback_ip_ttl:
+      if not times or last_seen < now - self.fallback_ip_ttl:
         self._store.pop(ip_key, None)
 
     timestamps = self._store.setdefault(ip, {})
-    if len(timestamps) >= rate_limit:
+    if len(timestamps) >= self.rate_limit:
       return False
     timestamps[str(now)] = now
     self._store.move_to_end(ip)
-    while len(self._store) > fallback_max_ips:
+    while len(self._store) > self.fallback_max_ips:
       self._store.popitem(last=False)
     return True
 
 
-fallback_limiter = ThreadSafeRateLimiter()
-fallback_store = fallback_limiter._store
-fallback_active = False
+class RedisRateLimiter:
+  def __init__(
+    self,
+    redis_cli,
+    rate_limit: int,
+    rate_window: int,
+    fallback_ip_ttl: int,
+    fallback_max_ips: int,
+  ) -> None:
+    self.redis_cli = redis_cli
+    self.rate_limit = rate_limit
+    self.rate_window = rate_window
+    self.fallback_ip_ttl = fallback_ip_ttl
+    self.fallback_max_ips = fallback_max_ips
+    self.fallback_limiter = InMemoryRateLimiter(
+      rate_limit, rate_window, fallback_ip_ttl, fallback_max_ips
+    )
+    self.fallback_active = False
+
+  async def record_request(self, ip: str, now: float) -> Tuple[bool, str]:
+    if self.fallback_active:
+      try:
+        await self.redis_cli.ping()
+        self.fallback_active = False
+        await self.fallback_limiter.clear()
+      except Exception:
+        pass
+
+    if not self.fallback_active:
+      try:
+        key = f"ratelimit:{ip}"
+        await self.redis_cli.zremrangebyscore(key, 0, now - self.rate_window)
+        count = await self.redis_cli.zcard(key)
+        if count >= self.rate_limit:
+          return False, "redis"
+        await self.redis_cli.zadd(key, {str(now): now})
+        await self.redis_cli.expire(key, self.rate_window)
+        return True, "redis"
+      except Exception:
+        self.fallback_active = True
+        await self.fallback_limiter.clear()
+
+    allowed, _ = await self.fallback_limiter.record_request(ip, now)
+    return allowed, "memory"
+
+  async def clear(self) -> None:
+    self.fallback_active = False
+    await self.fallback_limiter.clear()
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
   async def dispatch(self, request: Request, call_next):
-    from backend import main as main_module
-
-    rate_limit = main_module.RATE_LIMIT
-    rate_window = main_module.RATE_WINDOW
-    fallback_ip_ttl = main_module.FALLBACK_IP_TTL
-    redis_cli = main_module.redis_client
-    fallback_max_ips = main_module.FALLBACK_MAX_IPS
-
+    rate_limiter = request.app.state.rate_limiter
     ip = get_client_ip(request)
     now = time.time()
-    key = f"ratelimit:{ip}"
-    global fallback_active
-
-    if fallback_active:
-      try:
-        await redis_cli.ping()
-        fallback_active = False
-        main_module.fallback_active = False
-        await fallback_limiter.clear()
-      except Exception:
-        pass
-
-    if not fallback_active:
-      try:
-        await redis_cli.zremrangebyscore(key, 0, now - rate_window)
-        count = await redis_cli.zcard(key)
-        if count >= rate_limit:
-          return JSONResponse(status_code=429, content={"detail": "Too many requests"})
-        await redis_cli.zadd(key, {str(now): now})
-        await redis_cli.expire(key, rate_window)
-        response = await call_next(request)
-        response.headers["X-RateLimit-Store"] = "redis"
-        return response
-      except Exception:
-        fallback_active = True
-        main_module.fallback_active = True
-        await fallback_limiter.clear()
-
-    allowed = await fallback_limiter.record_request(
-      ip,
-      now,
-      rate_limit,
-      rate_window,
-      fallback_ip_ttl,
-      fallback_max_ips,
-    )
-    main_module.fallback_active = fallback_active
+    allowed, store = await rate_limiter.record_request(ip, now)
     if not allowed:
       return JSONResponse(status_code=429, content={"detail": "Too many requests"})
     response = await call_next(request)
-    response.headers["X-RateLimit-Store"] = "memory"
+    response.headers["X-RateLimit-Store"] = store
     return response
