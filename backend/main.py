@@ -60,8 +60,9 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 redis_client = redis.from_url(REDIS_URL, decode_responses=True)
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
-# Use PUBLIC_CHAT_API_KEY as fallback for local development
-CHAT_API_KEY = os.getenv("CHAT_API_KEY") or os.getenv("PUBLIC_CHAT_API_KEY")
+CHAT_API_KEY = os.getenv("CHAT_API_KEY")
+if ENVIRONMENT != "development" and not CHAT_API_KEY:
+  raise RuntimeError("CHAT_API_KEY is required in non-development environments")
 SENSITIVE_PATHS = {"/api/chat", "/pdf"}
 DISALLOWED_PATTERNS = [re.compile(p, re.IGNORECASE) for p in ["<script", "javascript:", "data:"]]
 
