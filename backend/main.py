@@ -2,6 +2,7 @@ import time
 from PyPDF2 import PdfReader, PdfWriter
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from .api import chat, pdf, health
@@ -18,6 +19,7 @@ from .utils.sanitization import sanitize_string, CoverLetterContext
 from .utils.validation import get_allowed_origins, reload_schema, MAX_REQUEST_SIZE
 from .services.openai_client import validate_environment
 from .services.template_service import TEMPLATE_CHECKSUMS, FORMS_DIR
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 
 RATE_LIMIT = 100
@@ -50,6 +52,10 @@ def create_app(rate_limiter: RateLimiterProtocol) -> FastAPI:
   app.include_router(chat.router)
   app.include_router(pdf.router)
   app.include_router(health.router)
+
+  @app.get("/metrics")
+  async def metrics() -> Response:
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
   return app
 
 
