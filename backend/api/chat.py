@@ -10,7 +10,11 @@ from pydantic import BaseModel, field_validator
 from ..middleware.auth import verify_api_key
 from ..services.openai_client import client
 from ..utils.sanitization import sanitize_string, DISALLOWED_PATTERNS
-from ..utils.validation import MAX_REQUEST_SIZE, MAX_FIELD_LENGTH
+from ..utils.validation import (
+  MAX_REQUEST_SIZE,
+  MAX_FIELD_LENGTH,
+  MAX_HISTORY_MESSAGES,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -151,11 +155,12 @@ async def chat(chat_request: ChatRequest, request: Request) -> ChatResponse:
   verify_api_key(request)
   CHAT_REQUESTS.inc()
   with CHAT_LATENCY.time():
-    payload = chat_request.model_dump()
+    trimmed = chat_request.messages[-MAX_HISTORY_MESSAGES:]
+    payload = {"messages": [m.model_dump() for m in trimmed]}
     if len(json.dumps(payload).encode("utf-8")) > MAX_REQUEST_SIZE:
       raise HTTPException(status_code=413, detail="Request too large")
 
-    for msg in chat_request.messages:
+    for msg in trimmed:
       if len(msg.content) > MAX_FIELD_LENGTH:
         raise HTTPException(status_code=413, detail="Field too large")
       for pattern in DISALLOWED_PATTERNS:
@@ -164,7 +169,7 @@ async def chat(chat_request: ChatRequest, request: Request) -> ChatResponse:
 
     user_messages = [
       {"role": msg.role, "content": sanitize_string(msg.content)}
-      for msg in chat_request.messages
+      for msg in trimmed
     ]
     openai_messages = [
       {"role": "system", "content": SYSTEM_PROMPT},
