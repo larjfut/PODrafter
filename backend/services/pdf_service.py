@@ -1,4 +1,5 @@
 import io
+import asyncio
 import zipfile
 from fastapi import HTTPException
 
@@ -6,7 +7,7 @@ from ..utils.sanitization import sanitize_string
 from .template_service import FIELD_MAP, get_template_file, verify_template_integrity
 
 
-def generate_pdf(data: dict) -> io.BytesIO:
+def _generate_pdf_sync(data: dict) -> io.BytesIO:
   from backend import main as main_module
 
   county = data.get("county", "General")
@@ -40,3 +41,7 @@ def generate_pdf(data: dict) -> io.BytesIO:
     zf.writestr("petition.pdf", pdf_bytes.getvalue())
   zip_bytes.seek(0)
   return zip_bytes
+
+
+async def generate_pdf(data: dict) -> io.BytesIO:
+  return await asyncio.to_thread(_generate_pdf_sync, data)

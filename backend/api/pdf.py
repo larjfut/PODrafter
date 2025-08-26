@@ -6,6 +6,7 @@ from jsonschema import ValidationError, validate, FormatChecker
 from ..middleware.auth import verify_api_key
 from ..services.pdf_service import generate_pdf
 from ..utils.validation import MAX_REQUEST_SIZE, MAX_FIELD_LENGTH, PETITION_SCHEMA
+from ..worker import queue
 
 router = APIRouter()
 
@@ -28,7 +29,8 @@ async def pdf(data: dict, request: Request) -> StreamingResponse:
   except ValidationError as exc:
     raise HTTPException(status_code=400, detail="Invalid petition data") from exc
 
-  zip_bytes = generate_pdf(data)
+  future = await queue.enqueue(generate_pdf, data)
+  zip_bytes = await future
   return StreamingResponse(
     zip_bytes,
     media_type="application/zip",
