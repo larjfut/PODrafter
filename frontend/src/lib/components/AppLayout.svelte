@@ -10,13 +10,25 @@
   import { WIZARD_STEPS } from '$lib/constants'
   import { generatePDF, canProceedToReview } from '$lib/utils'
   import { get } from 'svelte/store'
-  import ChatArea from './ChatArea.svelte'
-  import ProgressSidebar from './ProgressSidebar.svelte'
-  import ReviewForm from './ReviewForm.svelte'
+
+  let ChatArea: typeof import('./ChatArea.svelte').default | null = null
+  let ProgressSidebar: typeof import('./ProgressSidebar.svelte').default | null = null
+  let ReviewForm: typeof import('./ReviewForm.svelte').default | null = null
 
   let revokePdf: (() => void) | null = null
 
   $: canReview = canProceedToReview($petitionData)
+
+  $: if ($appState.currentStep === 'chat' && (!ChatArea || !ProgressSidebar)) {
+    Promise.all([
+      import('./ChatArea.svelte').then(m => (ChatArea = m.default)),
+      import('./ProgressSidebar.svelte').then(m => (ProgressSidebar = m.default))
+    ])
+  }
+
+  $: if ($appState.currentStep === 'review' && !ReviewForm) {
+    import('./ReviewForm.svelte').then(m => (ReviewForm = m.default))
+  }
 
   async function handleGenerate() {
     appState.update(s => ({ ...s, isLoading: true, error: undefined }))
@@ -85,9 +97,13 @@
   {#if $appState.currentStep === 'chat'}
     <div class="md:flex gap-4">
       <div class="flex-1 flex flex-col">
-        <ChatArea />
+        {#if ChatArea}
+          <svelte:component this={ChatArea} />
+        {/if}
       </div>
-      <ProgressSidebar />
+      {#if ProgressSidebar}
+        <svelte:component this={ProgressSidebar} />
+      {/if}
     </div>
     <button
       class="mt-4 bg-gray-200 px-3 py-1 rounded disabled:opacity-50"
@@ -97,7 +113,9 @@
       Review
     </button>
   {:else if $appState.currentStep === 'review'}
-    <ReviewForm />
+    {#if ReviewForm}
+      <svelte:component this={ReviewForm} />
+    {/if}
   {:else if $appState.currentStep === 'generate'}
     <p class="mb-4">Ready to generate your petition PDF.</p>
     <div class="flex gap-2">
