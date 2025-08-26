@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import html
+import bleach
 import io
 import json
 import logging
@@ -82,8 +82,8 @@ FALLBACK_MAX_IPS = 1000
 FALLBACK_IP_TTL = RATE_WINDOW * 5
 
 def sanitize_string(value: str) -> str:
-  """Basic XSS protection and length enforcement for user-provided strings."""
-  cleaned = html.escape(value, quote=True)
+  """Sanitize user-provided strings to mitigate XSS risks."""
+  cleaned = bleach.clean(value, strip=True)
   cleaned = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", cleaned)
   cleaned = re.sub(r"(javascript:|data:)", "", cleaned, flags=re.IGNORECASE)
   return cleaned.strip()[:MAX_FIELD_LENGTH]
