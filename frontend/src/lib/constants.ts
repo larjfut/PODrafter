@@ -7,6 +7,8 @@ export const API_BASE_URL = sanitizeBaseUrl(
 
 export const CHAT_API_KEY = import.meta.env.PUBLIC_CHAT_API_KEY
 
+export const MAX_HISTORY_MESSAGES = 20
+
 export const WIZARD_STEPS: { step: WizardStep, title: string }[] = [
   { step: 'chat', title: 'Tell Your Story' },
   { step: 'review', title: 'Review Details' },

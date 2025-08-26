@@ -8,6 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 SCHEMA_PATH = Path(os.getenv("SCHEMA_PATH", BASE_DIR / "schema" / "petition.schema.json"))
 MAX_REQUEST_SIZE = 10_000
 MAX_FIELD_LENGTH = 1_000
+MAX_HISTORY_MESSAGES = 20
 DEFAULT_ALLOWED_ORIGINS = ["http://localhost:5173"]
 
 

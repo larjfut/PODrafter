@@ -388,6 +388,38 @@ def test_chat_request_too_large():
   asyncio.run(_run())
 
 
+def test_chat_truncates_history(monkeypatch):
+  called = {}
+
+  async def fake_create(self, *args, **kwargs):
+    called["messages"] = kwargs["messages"]
+    class FakeMessage:
+      role = "assistant"
+      content = "ok"
+    class FakeResponse:
+      choices = [type("Choice", (), {"message": FakeMessage()})()]
+    return FakeResponse()
+
+  async def _run():
+    monkeypatch.setattr(AsyncCompletions, "create", fake_create)
+    long = "a" * 400
+    messages = [{"role": "user", "content": long}] * 30
+    payload = {"messages": messages[-20:]}
+    assert len(json.dumps(payload).encode("utf-8")) <= MAX_REQUEST_SIZE
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        resp = await client.post(
+            "/api/chat",
+            json={"messages": messages},
+            headers={"X-API-Key": "test-key"},
+        )
+    assert resp.status_code == 200
+    assert len(called["messages"]) == 21
+
+  asyncio.run(_run())
+
+
 def test_pdf_invalid_schema():
   async def _run():
     data = {"county": "Harris"}

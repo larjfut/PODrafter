@@ -6,14 +6,21 @@ import type {
   ValidationError,
   ValidationResult,
 } from './types'
-import { API_BASE_URL, REQUIRED_FIELDS, CHAT_API_KEY } from './constants'
+import {
+  API_BASE_URL,
+  REQUIRED_FIELDS,
+  CHAT_API_KEY,
+  MAX_HISTORY_MESSAGES,
+} from './constants'
 
 export async function sendChat(
   messages: ChatMessage[],
   timeoutMs = 10000,
 ): Promise<ChatResponse> {
   const payload = {
-    messages: messages.map((m) => ({ role: m.role, content: m.content })),
+    messages: messages
+      .slice(-MAX_HISTORY_MESSAGES)
+      .map((m) => ({ role: m.role, content: m.content })),
   }
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
