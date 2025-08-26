@@ -9,7 +9,7 @@ from .auth import get_client_ip
 from ..utils.validation import MAX_REQUEST_SIZE
 
 logger = structlog.get_logger(__name__)
-SENSITIVE_PATHS = {"/api/chat", "/pdf"}
+SENSITIVE_PATHS = {"/api/chat", "/api/pdf"}
 
 
 class BodySizeLimitMiddleware(BaseHTTPMiddleware):

@@ -62,7 +62,7 @@ def test_route_enqueues_and_returns_zip(monkeypatch):
     async with httpx.AsyncClient(
       transport=httpx.ASGITransport(app=app), base_url="http://testserver"
     ) as client:
-      return await client.post("/pdf", json=data, headers={"X-API-Key": "test-key"})
+      return await client.post("/api/pdf", json=data, headers={"X-API-Key": "test-key"})
 
   resp = asyncio.run(_run())
   assert resp.status_code == 200

@@ -22,7 +22,7 @@ describe('generatePDF', () => {
     const resp = await generatePDF({} as PetitionData)
     expect(resp.success).toBe(true)
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.any(String),
+      '/api/pdf',
       expect.objectContaining({
         headers: expect.objectContaining({ 'X-API-Key': 'test-key' }),
       }),

@@ -38,7 +38,7 @@ def test_chunked_request_too_large():
       transport=httpx.ASGITransport(app=app), base_url="http://testserver"
     ) as client:
       resp = await client.post(
-        "/pdf",
+        "/api/pdf",
         content=gen(),
         headers={
           "Content-Type": "application/json",

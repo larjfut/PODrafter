@@ -19,7 +19,7 @@ PDF_LATENCY = Histogram(
 )
 
 
-@router.post("/pdf")
+@router.post("/api/pdf")
 @rate_limit(limit=5, window=60, key="pdf")
 async def pdf(data: dict, request: Request) -> StreamingResponse:
   verify_api_key(request)
