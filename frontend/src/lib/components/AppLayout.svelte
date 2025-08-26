@@ -75,29 +75,33 @@
     appState.update(s => ({ ...s, isLoading: true, error: undefined }))
 
     try {
-      const response = await sendChat(get(chatMessages), 10000)
+        const response = await sendChat(get(chatMessages), 10000)
 
-      // Extract and merge petition data
-      if (response.data && Object.keys(response.data).length > 0) {
-        petitionData.update(current => {
-          const updated = { ...current }
-          for (const [key, value] of Object.entries(response.data!)) {
-            if (value !== undefined && value !== null && value !== '') {
-              ;(updated as any)[key] = value
+        // Merge petition data from upserts
+        if (response.upserts.length > 0) {
+          petitionData.update(current => {
+            const updated = { ...current }
+            for (const upsert of response.upserts) {
+              for (const [key, value] of Object.entries(upsert)) {
+                if (key === 'source_msg_id' || key === 'confidence') continue
+                if (value !== undefined && value !== null && value !== '') {
+                  ;(updated as any)[key] = value
+                }
+              }
             }
-          }
-          return updated
-        })
-      }
+            return updated
+          })
+        }
 
-      const assistantMsg: ChatMessage = {
-        role: 'assistant',
-        content: response.content,
-        timestamp: new Date(),
-        id: crypto.randomUUID()
-      }
+        const last = response.messages[response.messages.length - 1]
+        const assistantMsg: ChatMessage = {
+          role: 'assistant',
+          content: last?.content || '',
+          timestamp: new Date(),
+          id: crypto.randomUUID()
+        }
 
-      chatMessages.update(m => [...m, assistantMsg])
+        chatMessages.update(m => [...m, assistantMsg])
     } catch (err) {
       if (import.meta.env.DEV) console.error('Chat error:', err)
       const errorMsg = err instanceof Error ? err.message : 'Chat request failed'

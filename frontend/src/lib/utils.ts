@@ -31,7 +31,8 @@ export async function sendChat(
       const text = await res.text().catch(() => '')
       throw new Error(`Chat request failed: ${res.status} ${text}`)
     }
-    return res.json()
+    const json = (await res.json()) as ChatResponse
+    return json
   } catch (err) {
     throw err
   } finally {
