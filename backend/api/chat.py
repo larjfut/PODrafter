@@ -4,6 +4,7 @@ from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
+from prometheus_client import Counter, Histogram
 from pydantic import BaseModel, field_validator
 
 from ..middleware.auth import verify_api_key
@@ -12,6 +13,12 @@ from ..utils.sanitization import sanitize_string, DISALLOWED_PATTERNS
 from ..utils.validation import MAX_REQUEST_SIZE, MAX_FIELD_LENGTH
 
 logger = logging.getLogger(__name__)
+
+
+CHAT_REQUESTS = Counter("chat_requests_total", "Number of chat requests")
+CHAT_LATENCY = Histogram(
+  "chat_request_duration_seconds", "Latency of chat requests"
+)
 
 
 class Message(BaseModel):
@@ -142,61 +149,67 @@ router = APIRouter()
 @router.post("/api/chat", response_model=ChatResponse)
 async def chat(chat_request: ChatRequest, request: Request) -> ChatResponse:
   verify_api_key(request)
+  CHAT_REQUESTS.inc()
+  with CHAT_LATENCY.time():
+    payload = chat_request.model_dump()
+    if len(json.dumps(payload).encode("utf-8")) > MAX_REQUEST_SIZE:
+      raise HTTPException(status_code=413, detail="Request too large")
 
-  payload = chat_request.model_dump()
-  if len(json.dumps(payload).encode("utf-8")) > MAX_REQUEST_SIZE:
-    raise HTTPException(status_code=413, detail="Request too large")
+    for msg in chat_request.messages:
+      if len(msg.content) > MAX_FIELD_LENGTH:
+        raise HTTPException(status_code=413, detail="Field too large")
+      for pattern in DISALLOWED_PATTERNS:
+        if pattern.search(msg.content):
+          raise HTTPException(status_code=400, detail="Invalid content")
 
-  for msg in chat_request.messages:
-    if len(msg.content) > MAX_FIELD_LENGTH:
-      raise HTTPException(status_code=413, detail="Field too large")
-    for pattern in DISALLOWED_PATTERNS:
-      if pattern.search(msg.content):
-        raise HTTPException(status_code=400, detail="Invalid content")
+    user_messages = [
+      {"role": msg.role, "content": sanitize_string(msg.content)}
+      for msg in chat_request.messages
+    ]
+    openai_messages = [
+      {"role": "system", "content": SYSTEM_PROMPT},
+      *user_messages,
+    ]
 
-  user_messages = [
-    {"role": msg.role, "content": sanitize_string(msg.content)}
-    for msg in chat_request.messages
-  ]
-  openai_messages = [
-    {"role": "system", "content": SYSTEM_PROMPT},
-    *user_messages,
-  ]
-
-  try:
-    response = await client.chat.completions.create(
-      model="gpt-4o",
-      messages=openai_messages,
-      temperature=0.7,
-      tools=TOOLS,
-      tool_choice="auto",
-    )
-    msg = response.choices[0].message
-    upserts: list[Upsert] = []
-    for call in getattr(msg, "tool_calls", []) or []:
-      name = getattr(getattr(call, "function", None), "name", "")
-      if name not in {"set_petition_data", "upsert_petition"}:
-        continue
-      arguments = getattr(getattr(call, "function", None), "arguments", "{}") or "{}"
-      try:
-        raw = json.loads(arguments)
-      except json.JSONDecodeError:
-        logger.debug("invalid JSON in tool call arguments", extra={"function": name})
-        continue
-      logger.info("extracted petition data", extra={"fields": list(raw.keys())})
-      try:
-        upserts.append(Upsert(**raw))
-      except Exception as exc:
-        logger.debug(
-          "invalid upsert payload",
-          extra={"error": str(exc), "fields": list(raw.keys())},
+    try:
+      response = await client.chat.completions.create(
+        model="gpt-4o",
+        messages=openai_messages,
+        temperature=0.7,
+        tools=TOOLS,
+        tool_choice="auto",
+      )
+      msg = response.choices[0].message
+      upserts: list[Upsert] = []
+      for call in getattr(msg, "tool_calls", []) or []:
+        name = getattr(getattr(call, "function", None), "name", "")
+        if name not in {"set_petition_data", "upsert_petition"}:
+          continue
+        arguments = (
+          getattr(getattr(call, "function", None), "arguments", "{}") or "{}"
         )
-    assistant_message = {"role": "assistant", "content": sanitize_string(msg.content or "")}
-    full_messages = [Message(**m) for m in user_messages + [assistant_message]]
-    result = ChatResponse(messages=full_messages, upserts=upserts)
-    return JSONResponse(content=result.model_dump(exclude_none=True))
-  except HTTPException:
-    raise
-  except Exception as e:
-    logger.exception("chat endpoint failed", exc_info=e)
-    raise HTTPException(status_code=500, detail="Internal server error") from e
+        try:
+          raw = json.loads(arguments)
+        except json.JSONDecodeError:
+          logger.debug("invalid JSON in tool call arguments", extra={"function": name})
+          continue
+        logger.info("extracted petition data", extra={"fields": list(raw.keys())})
+        try:
+          upserts.append(Upsert(**raw))
+        except Exception as exc:
+          logger.debug(
+            "invalid upsert payload",
+            extra={"error": str(exc), "fields": list(raw.keys())},
+          )
+      assistant_message = {
+        "role": "assistant",
+        "content": sanitize_string(msg.content or ""),
+      }
+      full_messages = [Message(**m) for m in user_messages + [assistant_message]]
+      result = ChatResponse(messages=full_messages, upserts=upserts)
+      return JSONResponse(content=result.model_dump(exclude_none=True))
+    except HTTPException:
+      raise
+    except Exception as e:
+      logger.exception("chat endpoint failed", exc_info=e)
+      raise HTTPException(status_code=500, detail="Internal server error") from e
