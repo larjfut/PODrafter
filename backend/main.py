@@ -17,6 +17,7 @@ import os
 import re
 import time
 import zipfile
+from collections import OrderedDict
 from pathlib import Path
 from urllib.parse import urlparse
 import redis.asyncio as redis
@@ -75,11 +76,32 @@ TEMPLATE_CHECKSUMS: dict[str, str] = {
 
 # In-memory fallback for rate limiting when Redis is unavailable. Mapping of
 # IP -> {timestamp_id: request_time}
-fallback_store: dict[str, dict[str, float]] = {}
+fallback_store: OrderedDict[str, dict[str, float]] = OrderedDict()
 fallback_active = False
 fallback_lock = asyncio.Lock()
 FALLBACK_MAX_IPS = 1000
 FALLBACK_IP_TTL = RATE_WINDOW * 5
+
+
+def record_fallback_request(ip: str, now: float) -> bool:
+  """Record request for IP and enforce rate limit/eviction."""
+  window_start = now - RATE_WINDOW
+  for ip_key, times in list(fallback_store.items()):
+    for ts_key, ts in list(times.items()):
+      if ts < window_start:
+        del times[ts_key]
+    last_seen = max(times.values()) if times else 0
+    if not times or last_seen < now - FALLBACK_IP_TTL:
+      fallback_store.pop(ip_key, None)
+
+  timestamps = fallback_store.setdefault(ip, {})
+  if len(timestamps) >= RATE_LIMIT:
+    return False
+  timestamps[str(now)] = now
+  fallback_store.move_to_end(ip)
+  while len(fallback_store) > FALLBACK_MAX_IPS:
+    fallback_store.popitem(last=False)
+  return True
 
 def sanitize_string(value: str) -> str:
   """Sanitize user-provided strings to mitigate XSS risks."""
@@ -166,34 +188,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         )
 
     # Fallback in-memory rate limiting
-    window_start = now - RATE_WINDOW
     async with fallback_lock:
-      timestamps = fallback_store.setdefault(ip, {})
-      for ts_key, ts in list(timestamps.items()):
-        if ts < window_start:
-          del timestamps[ts_key]
-      if len(timestamps) >= RATE_LIMIT:
-        return JSONResponse(status_code=429, content={"detail": "Too many requests"})
-      timestamps[str(now)] = now
-      # Cleanup expired entries and evict stale IPs
-      for ip_key, times in list(fallback_store.items()):
-        for ts_key, ts in list(times.items()):
-          if ts < window_start:
-            del times[ts_key]
-        last_seen = max(times.values()) if times else 0
-        if not times or last_seen < now - FALLBACK_IP_TTL:
-          del fallback_store[ip_key]
-
-      # Enforce max IP cache size
-      if len(fallback_store) > FALLBACK_MAX_IPS:
-        sorted_ips = sorted(
-          fallback_store.items(),
-          key=lambda item: max(item[1].values()) if item[1] else 0,
-        )
-        while len(sorted_ips) > FALLBACK_MAX_IPS:
-          old_ip, _ = sorted_ips.pop(0)
-          fallback_store.pop(old_ip, None)
-
+      allowed = record_fallback_request(ip, now)
+    if not allowed:
+      return JSONResponse(status_code=429, content={"detail": "Too many requests"})
     response = await call_next(request)
     response.headers["X-RateLimit-Store"] = "memory"
     return response
