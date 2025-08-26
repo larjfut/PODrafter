@@ -456,7 +456,7 @@ async def generate_pdf(data: dict, request: Request) -> StreamingResponse:
     )
 
 
-# ✅ Add your OpenAI chat endpoint below
+# OpenAI chat endpoint (/api/chat)
 
 SYSTEM_PROMPT = """You are a trauma-informed legal assistant helping create protective order petitions in Texas. You are compassionate, patient, and professional.
 
