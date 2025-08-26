@@ -13,6 +13,7 @@ from .middleware.rate_limit import (
   fallback_limiter,
 )
 from .middleware.security import BodySizeLimitMiddleware, log_requests, set_security_headers
+from .middleware.correlation import add_correlation_id
 from .utils.sanitization import sanitize_string, CoverLetterContext
 from .utils.validation import get_allowed_origins, reload_schema, MAX_REQUEST_SIZE
 from .services.openai_client import validate_environment
@@ -35,6 +36,7 @@ app.add_middleware(
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["127.0.0.1"])
 app.middleware("http")(set_security_headers)
 app.middleware("http")(log_requests)
+app.middleware("http")(add_correlation_id)
 
 
 @app.on_event("startup")
