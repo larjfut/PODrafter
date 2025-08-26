@@ -1,5 +1,5 @@
 import json
-import logging
+import structlog
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request
@@ -12,7 +12,7 @@ from ..services.openai_client import client
 from ..utils.sanitization import sanitize_string, DISALLOWED_PATTERNS
 from ..utils.validation import MAX_REQUEST_SIZE, MAX_FIELD_LENGTH
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 CHAT_REQUESTS = Counter("chat_requests_total", "Number of chat requests")
@@ -191,15 +191,16 @@ async def chat(chat_request: ChatRequest, request: Request) -> ChatResponse:
         try:
           raw = json.loads(arguments)
         except json.JSONDecodeError:
-          logger.debug("invalid JSON in tool call arguments", extra={"function": name})
+          logger.debug("invalid JSON in tool call arguments", function=name)
           continue
-        logger.info("extracted petition data", extra={"fields": list(raw.keys())})
+        logger.info("extracted petition data", fields=list(raw.keys()))
         try:
           upserts.append(Upsert(**raw))
         except Exception as exc:
           logger.debug(
             "invalid upsert payload",
-            extra={"error": str(exc), "fields": list(raw.keys())},
+            error=str(exc),
+            fields=list(raw.keys()),
           )
       assistant_message = {
         "role": "assistant",

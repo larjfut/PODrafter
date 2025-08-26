@@ -1,14 +1,14 @@
-import logging
 import time
+import structlog
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from structlog.contextvars import bind_contextvars
 
 from .auth import get_client_ip
-from .correlation import request_id
 from ..utils.validation import MAX_REQUEST_SIZE
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 SENSITIVE_PATHS = {"/api/chat", "/pdf"}
 
 
@@ -62,34 +62,21 @@ async def set_security_headers(request: Request, call_next):
 
 async def log_requests(request: Request, call_next):
   ip = get_client_ip(request)
+  path = request.url.path
+  log_ip = "redacted" if path in SENSITIVE_PATHS else ip
+  log_path = "redacted" if path in SENSITIVE_PATHS else path
+  bind_contextvars(method=request.method, path=log_path, client_ip=log_ip)
   start = time.time()
   try:
     response = await call_next(request)
   except Exception:
     duration = (time.time() - start) * 1000
-    path = request.url.path
-    log_ip = "redacted" if path in SENSITIVE_PATHS else ip
-    log_path = "redacted" if path in SENSITIVE_PATHS else path
-    logger.exception(
-      "Error processing %s %s from %s in %.2fms [id=%s]",
-      request.method,
-      log_path,
-      log_ip,
-      duration,
-      request_id.get(None),
-    )
+    logger.exception("request error", duration_ms=duration)
     raise
   duration = (time.time() - start) * 1000
-  path = request.url.path
-  log_ip = "redacted" if path in SENSITIVE_PATHS else ip
-  log_path = "redacted" if path in SENSITIVE_PATHS else path
   logger.info(
-    "%s %s from %s -> %s in %.2fms [id=%s]",
-    request.method,
-    log_path,
-    log_ip,
-    response.status_code,
-    duration,
-    request_id.get(None),
+    "request completed",
+    status_code=response.status_code,
+    duration_ms=duration,
   )
   return response

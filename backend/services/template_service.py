@@ -1,11 +1,11 @@
 import hashlib
-import logging
 import os
 from pathlib import Path
 
+import structlog
 from fastapi import HTTPException
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 FORMS_DIR = Path(os.getenv("FORMS_DIR", BASE_DIR / "forms" / "standard"))
@@ -35,7 +35,7 @@ def verify_template_integrity(path: Path) -> None:
   with open(path, "rb") as f:
     actual = hashlib.sha256(f.read()).hexdigest()
   if actual != expected:
-    logger.error("Template checksum mismatch for %s", path.name)
+    logger.error("Template checksum mismatch", file=path.name)
     raise HTTPException(status_code=500, detail="Template integrity check failed")
 
 

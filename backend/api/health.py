@@ -1,10 +1,10 @@
-import logging
+import structlog
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from ..middleware.rate_limit import redis_client
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
@@ -20,5 +20,5 @@ async def redis_health():
     await redis_client.ping()
     return {"status": "ok"}
   except Exception as exc:
-    logger.warning("Redis health check failed: %s", exc)
+    logger.warning("Redis health check failed", error=str(exc))
     return JSONResponse(status_code=503, content={"status": "unavailable", "detail": "Redis unavailable"})
