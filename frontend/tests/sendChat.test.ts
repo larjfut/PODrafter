@@ -17,7 +17,9 @@ describe('sendChat', () => {
     )
     global.fetch = fetchMock as any
 
-    const messages: ChatMessage[] = [{ role: 'user', content: 'hi' }]
+    const messages: ChatMessage[] = [
+      { role: 'user', content: 'hi', timestamp: new Date(), id: 'm1' },
+    ]
     const promise = sendChat(messages, 10)
     vi.runAllTimers()
     await expect(promise).rejects.toThrow(/aborted/)
@@ -25,5 +27,27 @@ describe('sendChat', () => {
 
     global.fetch = originalFetch
     vi.useRealTimers()
+  })
+
+  it('returns ChatResponse with messages and upserts', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          messages: [
+            { role: 'user', content: 'hi' },
+            { role: 'assistant', content: 'hello' },
+          ],
+          upserts: [{ county: 'Harris', source_msg_id: 'm1', confidence: 0.9 }],
+        }),
+    })
+    global.fetch = fetchMock as any
+    const messages: ChatMessage[] = [
+      { role: 'user', content: 'hi', timestamp: new Date(), id: 'm1' },
+    ]
+    const resp = await sendChat(messages)
+    expect(resp.messages[1].content).toBe('hello')
+    expect(resp.upserts[0].county).toBe('Harris')
+    global.fetch = originalFetch
   })
 })

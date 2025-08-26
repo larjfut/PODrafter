@@ -29,10 +29,19 @@ export interface AppState {
 }
 
 // API response types
-export interface ChatResponse {
-  role: 'assistant'
+export interface ChatResponseMessage {
+  role: 'user' | 'assistant'
   content: string
-  data?: Partial<PetitionData>
+}
+
+export interface PetitionUpsert extends Partial<PetitionData> {
+  source_msg_id: string
+  confidence: number
+}
+
+export interface ChatResponse {
+  messages: ChatResponseMessage[]
+  upserts: PetitionUpsert[]
 }
 
 export interface PDFResponse {
