@@ -4,6 +4,7 @@ from fastapi.responses import StreamingResponse
 from jsonschema import ValidationError, validate, FormatChecker
 
 from ..middleware.auth import verify_api_key
+from ..middleware.rate_limit import rate_limit
 from ..services.pdf_service import generate_pdf
 from ..utils.validation import MAX_REQUEST_SIZE, MAX_FIELD_LENGTH, PETITION_SCHEMA
 from ..worker import queue
@@ -12,6 +13,7 @@ router = APIRouter()
 
 
 @router.post("/pdf")
+@rate_limit(limit=5, window=60, key="pdf")
 async def pdf(data: dict, request: Request) -> StreamingResponse:
   verify_api_key(request)
 
