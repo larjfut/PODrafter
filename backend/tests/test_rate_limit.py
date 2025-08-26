@@ -64,7 +64,7 @@ def test_ttl_eviction(monkeypatch):
   asyncio.run(_run())
 
 
-def test_store_size_pruning(monkeypatch):
+def test_lru_eviction(monkeypatch):
   async def _run():
     monkeypatch.setattr(main, 'FALLBACK_IP_TTL', 100)
     monkeypatch.setattr(main, 'FALLBACK_MAX_IPS', 2)
@@ -73,18 +73,23 @@ def test_store_size_pruning(monkeypatch):
 
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app, client=('1.1.1.1', 0)), base_url='http://testserver') as client:
       await client.get('/health')
-    assert len(main.fallback_store) == 1
 
     ts.now += 1
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app, client=('2.2.2.2', 0)), base_url='http://testserver') as client:
       await client.get('/health')
-    assert len(main.fallback_store) == 2
+
+    ts.now += 1
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app, client=('1.1.1.1', 0)), base_url='http://testserver') as client:
+      await client.get('/health')
 
     ts.now += 1
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app, client=('3.3.3.3', 0)), base_url='http://testserver') as client:
       await client.get('/health')
+
     assert len(main.fallback_store) == 2
-    assert '1.1.1.1' not in main.fallback_store
+    assert '1.1.1.1' in main.fallback_store
+    assert '2.2.2.2' not in main.fallback_store
+    assert '3.3.3.3' in main.fallback_store
 
   asyncio.run(_run())
 
