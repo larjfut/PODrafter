@@ -44,7 +44,10 @@ export async function generatePDF(data: PetitionData): Promise<PDFResponse> {
   try {
     const res = await fetch(`${API_BASE_URL}/pdf`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(CHAT_API_KEY ? { 'X-API-Key': CHAT_API_KEY } : {}),
+      },
       body: JSON.stringify(data),
     })
     if (!res.ok) return { success: false, error: `Status ${res.status}` }
