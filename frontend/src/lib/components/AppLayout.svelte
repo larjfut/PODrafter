@@ -26,6 +26,7 @@
 
   let userInput = ''
   let chatContainer: HTMLDivElement
+  let revokePdf: (() => void) | null = null
   const fieldEntries: [keyof PetitionData, string][] = Object.entries(
     FIELD_LABELS
   ) as [keyof PetitionData, string][]
@@ -119,8 +120,10 @@
   async function handleGenerate() {
     appState.update(s => ({ ...s, isLoading: true, error: undefined }))
     try {
+      revokePdf?.()
       const res = await generatePDF(get(petitionData))
       if (res.success && res.fileUrl) {
+        revokePdf = res.revoke ?? null
         pdfUrl.set(res.fileUrl)
         nextStep()
       } else {
@@ -135,6 +138,12 @@
     } finally {
       appState.update(s => ({ ...s, isLoading: false }))
     }
+  }
+
+  function handleDownloadBack() {
+    revokePdf?.()
+    pdfUrl.set(null)
+    prevStep()
   }
 </script>
 
@@ -277,7 +286,7 @@
       </a>
     {/if}
     <div class="mt-4">
-      <button class="bg-gray-200 px-3 py-1 rounded" on:click={prevStep}>
+      <button class="bg-gray-200 px-3 py-1 rounded" on:click={handleDownloadBack}>
         Back
       </button>
     </div>

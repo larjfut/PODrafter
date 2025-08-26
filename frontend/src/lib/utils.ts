@@ -49,7 +49,8 @@ export async function generatePDF(data: PetitionData): Promise<PDFResponse> {
     if (!res.ok) return { success: false, error: `Status ${res.status}` }
     const blob = await res.blob()
     const fileUrl = URL.createObjectURL(blob)
-    return { success: true, fileUrl }
+    const revoke = () => URL.revokeObjectURL(fileUrl)
+    return { success: true, fileUrl, revoke }
   } catch (err) {
     return { success: false, error: (err as Error).message }
   }
