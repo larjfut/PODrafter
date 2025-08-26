@@ -174,7 +174,9 @@
   {#if $appState.error}
     <p class="text-red-600 mb-2">{$appState.error}</p>
   {/if}
-  <h1 class="text-xl font-bold mb-4">PO Drafter Chat Wizard</h1>
+  <h1 class="text-xl font-bold mb-4">
+    PO Drafter Chat Wizard
+  </h1>
   <nav class="mb-4 flex justify-between">
   {#each WIZARD_STEPS as { step, title }}
     <span class:text-blue-600={step === $appState.currentStep}>
