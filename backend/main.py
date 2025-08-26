@@ -1,10 +1,13 @@
+import os
 import time
 from PyPDF2 import PdfReader, PdfWriter
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_swagger_ui_html
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from .api import chat, pdf, health
+from .middleware.auth import verify_api_key
 from .middleware.rate_limit import (
   RateLimitMiddleware,
   redis_client,
@@ -27,7 +30,7 @@ FALLBACK_IP_TTL = RATE_WINDOW * 5
 
 
 def create_app(rate_limiter: RateLimiterProtocol) -> FastAPI:
-  app = FastAPI()
+  app = FastAPI(docs_url=None, redoc_url=None)
   app.state.rate_limiter = rate_limiter
   app.add_middleware(RateLimitMiddleware)
   app.add_middleware(BodySizeLimitMiddleware)
@@ -46,6 +49,12 @@ def create_app(rate_limiter: RateLimiterProtocol) -> FastAPI:
   async def startup_event() -> None:
     reload_schema()
     await validate_environment()
+
+  if os.getenv("ENVIRONMENT", "development") != "production":
+    @app.get("/docs", include_in_schema=False)
+    async def docs(request: Request):
+      verify_api_key(request)
+      return get_swagger_ui_html(openapi_url=app.openapi_url, title="Swagger UI")
 
   app.include_router(chat.router)
   app.include_router(pdf.router)
