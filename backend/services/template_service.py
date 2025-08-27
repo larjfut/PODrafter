@@ -20,6 +20,8 @@ FIELD_MAP = {
   "respondent_full_name": "RespondentName",
 }
 
+# Pre-computed SHA-256 checksums for the standard PDF templates.
+# These values are used to verify the integrity of form templates at runtime.
 TEMPLATE_CHECKSUMS: dict[str, str] = {
   "dallas.pdf": "fd8584654ccf09fa6b9628fd8fd9859cc6cdc18e566b9a4b3db1f136f821b2c8",
   "harris.pdf": "fd8584654ccf09fa6b9628fd8fd9859cc6cdc18e566b9a4b3db1f136f821b2c8",
