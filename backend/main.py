@@ -10,6 +10,7 @@ from fastapi.responses import Response
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from .api import chat, pdf, health
+from .middleware.auth import validate_api_key
 from .middleware.rate_limit import (
   RateLimitMiddleware,
   redis_client,
@@ -52,6 +53,7 @@ def create_app(rate_limiter: RateLimiterProtocol) -> FastAPI:
   async def startup_event() -> None:
     reload_schema()
     await validate_environment()
+    validate_api_key()
 
   app.include_router(chat.router)
   app.include_router(pdf.router)

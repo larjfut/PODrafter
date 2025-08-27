@@ -2,8 +2,11 @@ import os
 from fastapi import HTTPException, Request
 
 CHAT_API_KEY = os.getenv("CHAT_API_KEY")
-if CHAT_API_KEY is None:
-  raise HTTPException(status_code=500, detail="Server misconfiguration")
+
+
+def validate_api_key() -> None:
+  if CHAT_API_KEY is None:
+    raise RuntimeError("CHAT_API_KEY is not set")
 
 
 def verify_api_key(request: Request) -> None:
