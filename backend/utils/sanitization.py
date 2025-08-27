@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 import bleach
 from pydantic import BaseModel, field_validator
 
-MAX_FIELD_LENGTH = 1000
+from .validation import MAX_FIELD_LENGTH
 
 DISALLOWED_PATTERNS = [
   re.compile(p, re.IGNORECASE)
