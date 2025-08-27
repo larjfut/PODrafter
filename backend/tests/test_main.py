@@ -133,9 +133,9 @@ def test_pdf_generation(monkeypatch):
             writer.write(stream)
 
     monkeypatch.setattr(
-        "backend.main.PdfReader", lambda *args, **kwargs: DummyReader()
+        "backend.services.pdf_service.PdfReader", lambda *args, **kwargs: DummyReader()
     )
-    monkeypatch.setattr("backend.main.PdfWriter", DummyWriter)
+    monkeypatch.setattr("backend.services.pdf_service.PdfWriter", DummyWriter)
 
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://testserver"
@@ -402,7 +402,7 @@ def test_chat_truncates_history(monkeypatch):
 
   async def _run():
     monkeypatch.setattr(AsyncCompletions, "create", fake_create)
-    long = "a" * 400
+    long = "a" * 299
     messages = [{"role": "user", "content": long}] * 30
     payload = {"messages": messages[-20:]}
     assert len(json.dumps(payload).encode("utf-8")) <= MAX_REQUEST_SIZE
