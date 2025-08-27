@@ -1,14 +1,17 @@
 <script lang="ts">
   import {
     appState,
+    nextStep,
+    prevStep,
+    progress
+  } from '$lib/stores/progressStore'
+  import {
     chatMessages,
     petitionData,
-    pdfUrl,
-    nextStep,
-    prevStep
-  } from '$lib/stores'
+    pdfUrl
+  } from '$lib/stores/petitionStore'
   import { WIZARD_STEPS } from '$lib/constants'
-  import { generatePDF, canProceedToReview } from '$lib/utils'
+  import { generatePDF } from '$lib/utils'
   import { get } from 'svelte/store'
 
   let ChatArea: typeof import('./ChatArea.svelte').default | null = null
@@ -17,7 +20,7 @@
 
   let revokePdf: (() => void) | null = null
 
-  $: canReview = canProceedToReview($petitionData)
+  $: canReview = $progress.canReview
 
   $: if ($appState.currentStep === 'chat' && (!ChatArea || !ProgressSidebar)) {
     Promise.all([
