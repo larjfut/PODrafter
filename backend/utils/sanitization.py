@@ -13,7 +13,7 @@ DISALLOWED_PATTERNS = [
 
 
 def sanitize_string(value: str) -> str:
-  cleaned = bleach.clean(value, strip=True)
+  cleaned = bleach.clean(value, tags=[], attributes={}, strip=True)
   cleaned = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", cleaned)
   cleaned = re.sub(r"(javascript:|data:)", "", cleaned, flags=re.IGNORECASE)
   return cleaned.strip()[:MAX_FIELD_LENGTH]
