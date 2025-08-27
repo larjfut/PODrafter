@@ -67,15 +67,17 @@ Copy `.env.example` to `.env` and set these keys:
 | `PUBLIC_API_BASE_URL` | Base path for the backend API | `/api` |
 | `REDIS_URL` | Redis connection string for rate limiting | `redis://localhost:6379/0` |
 | `CHAT_API_KEY` | shared secret for `/api/chat`; sent via `X-API-Key` header | – |
-| `PUBLIC_CHAT_API_KEY` | frontend copy of `CHAT_API_KEY`; must match `CHAT_API_KEY` in development | – |
+| `PUBLIC_CHAT_API_KEY` | frontend copy of `CHAT_API_KEY`; must match `CHAT_API_KEY` exactly | – |
 
 Only exact origins are accepted. Separate multiple entries with commas and avoid wildcards (`*`), which are rejected for security.
 
 ### Chat authentication
 
-Requests to `/api/chat` must include an `X-API-Key` header matching `CHAT_API_KEY`. The frontend reads this value from `PUBLIC_CHAT_API_KEY` at build time and attaches it to requests.
+Requests to `/api/chat` must include an `X-API-Key` header equal to `CHAT_API_KEY`. The backend refuses to start if this variable is missing. The frontend reads the key from `PUBLIC_CHAT_API_KEY` at build time and attaches it to requests.
 
-For local development, set both `CHAT_API_KEY` and `PUBLIC_CHAT_API_KEY` in `.env` to the same value; mismatched keys will return **401 Unauthorized**. If `CHAT_API_KEY` is unset, the backend falls back to `PUBLIC_CHAT_API_KEY` to simplify local setup. In production, configure the backend's `CHAT_API_KEY` and provide `PUBLIC_CHAT_API_KEY` during the frontend build so the browser sends the correct header.
+**Development:** set both `CHAT_API_KEY` and `PUBLIC_CHAT_API_KEY` in `.env` to the same value before running the backend and frontend. Requests with a mismatched header return **401 Unauthorized**.
+
+**Production:** configure the server with a secure `CHAT_API_KEY` and build the frontend with `PUBLIC_CHAT_API_KEY` set to that same value so browsers send the correct header.
 
 ### Request size limits
 
