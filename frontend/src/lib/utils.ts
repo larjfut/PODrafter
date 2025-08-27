@@ -40,8 +40,6 @@ export async function sendChat(
     }
     const json = (await res.json()) as ChatResponse
     return json
-  } catch (err) {
-    throw err
   } finally {
     clearTimeout(timer)
   }
