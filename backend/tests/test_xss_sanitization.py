@@ -16,6 +16,8 @@ from backend.main import sanitize_string, app
     ("<img src=x onerror=alert(1)>", ""),
     ("javascript:alert(1)", "alert(1)"),
     ("data:text/html,<script>alert(1)</script>", "text/html,alert(1)"),
+    ("<b>bold</b>", "bold"),
+    ("<a href='https://example.com' onclick='alert(1)'>link</a>", "link"),
   ],
 )
 def test_sanitize_string(payload, expected):
