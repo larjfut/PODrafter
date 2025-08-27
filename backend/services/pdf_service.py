@@ -2,22 +2,21 @@ import io
 import asyncio
 import zipfile
 from fastapi import HTTPException
+from PyPDF2 import PdfReader, PdfWriter
 
 from ..utils.sanitization import sanitize_string
 from .template_service import FIELD_MAP, get_template_file, verify_template_integrity
 
 
 def _generate_pdf_sync(data: dict) -> io.BytesIO:
-  from backend import main as main_module
-
   county = data.get("county", "General")
   template_file = get_template_file(county)
   if not template_file.exists():
     raise HTTPException(status_code=404, detail="Template not found")
   verify_template_integrity(template_file)
 
-  reader = main_module.PdfReader(str(template_file))
-  writer = main_module.PdfWriter()
+  reader = PdfReader(str(template_file))
+  writer = PdfWriter()
   for page in reader.pages:
     writer.add_page(page)
 
