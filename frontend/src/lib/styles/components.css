@@ -1,0 +1,94 @@
+@layer base {
+  :root {
+    font-size: var(--t-base);
+  }
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+  }
+}
+@layer components {
+  .card {
+    @apply rounded-lg border;
+    background: var(--color-surface);
+    border-color: var(--color-border);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--dur-base) var(--ease);
+  }
+  .card:hover {
+    box-shadow: var(--shadow-md);
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center font-semibold select-none px-4 py-2 border;
+    border-radius: var(--radius-md);
+    transition:
+      background var(--dur-fast) var(--ease),
+      transform var(--dur-fast) var(--ease),
+      box-shadow var(--dur-fast) var(--ease);
+  }
+  .btn:active {
+    transform: translateY(1px);
+  }
+  .btn-primary {
+    color: #fff;
+    background: var(--color-primary);
+    border-color: transparent;
+  }
+  .btn-primary:hover {
+    background: var(--color-primary-600);
+    box-shadow: var(--shadow-sm);
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--color-text);
+    border-color: var(--color-border);
+  }
+  .btn-ghost:hover {
+    background: rgba(0, 0, 0, 0.035);
+  }
+  .btn-danger {
+    color: #fff;
+    background: var(--color-error);
+    border-color: transparent;
+  }
+  .btn-sm {
+    @apply text-sm px-3 py-1.5;
+  }
+  .btn-lg {
+    @apply text-base px-5 py-3;
+  }
+
+  .input {
+    @apply w-full rounded-md border px-3 py-2 text-sm outline-none;
+    background: var(--color-surface);
+    color: var(--color-text);
+    border-color: var(--color-border);
+    transition:
+      border-color var(--dur-fast) var(--ease),
+      box-shadow var(--dur-fast) var(--ease);
+  }
+  .input:focus {
+    border-color: var(--color-primary);
+    box-shadow: var(--focus-ring);
+  }
+  .input-error {
+    border-color: var(--color-error);
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+    background: color-mix(in srgb, var(--color-accent) 16%, white);
+    color: #8b2d30;
+  }
+
+  .navbar {
+    @apply w-full sticky top-0 z-20 border-b backdrop-blur;
+    background: color-mix(in srgb, var(--color-surface) 85%, transparent);
+    border-color: var(--color-border);
+  }
+
+  .row:hover {
+    background: var(--color-rose);
+  }
+}

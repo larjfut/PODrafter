@@ -1,6 +1,9 @@
-@import 'tailwindcss/base';
-@import 'tailwindcss/components';
-@import 'tailwindcss/utilities';
+@import './lib/styles/tokens.css';
+@import './lib/styles/components.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 html {
   font-family: system-ui, sans-serif;
