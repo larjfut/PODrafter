@@ -9,11 +9,14 @@ import redis.asyncio as redis
 from fastapi.responses import JSONResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import Request
+import structlog
 
 from .auth import get_client_ip
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+
+logger = structlog.get_logger(__name__)
 
 
 class RateLimiterProtocol(Protocol):
@@ -125,10 +128,18 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     rate_limiter = request.app.state.rate_limiter
     ip = get_client_ip(request)
     now = time.time()
-    allowed, store, remaining = await rate_limiter.record_request(ip, now)
+    try:
+      allowed, store, remaining = await rate_limiter.record_request(ip, now)
+    except Exception:
+      logger.exception("rate limiter failure", ip=ip)
+      return JSONResponse(status_code=503, content={"detail": "Service unavailable"})
     if not allowed:
       return JSONResponse(status_code=429, content={"detail": "Too many requests"})
-    response = await call_next(request)
+    try:
+      response = await call_next(request)
+    except Exception:
+      logger.exception("downstream failure")
+      return JSONResponse(status_code=503, content={"detail": "Service unavailable"})
     response.headers["X-RateLimit-Store"] = store
     response.headers["X-RateLimit-Remaining"] = str(remaining)
     return response
@@ -151,7 +162,11 @@ def rate_limit(limit: int, window: int, key: str | None = None):
       ip = get_client_ip(request)
       route_key = key or request.url.path
       composite = f"{route_key}:{ip}"
-      allowed, store, remaining = await limiter.record_request(composite, time.time())
+      try:
+        allowed, store, remaining = await limiter.record_request(composite, time.time())
+      except Exception:
+        logger.exception("rate limiter failure", ip=ip, route=route_key)
+        return JSONResponse(status_code=503, content={"detail": "Service unavailable"})
       if not allowed:
         return JSONResponse(status_code=429, content={"detail": "Too many requests"})
       result = await func(*args, **kwargs)
