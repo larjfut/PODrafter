@@ -76,6 +76,13 @@
     if ('caches' in window) {
       caches.keys().then(keys => keys.forEach(k => caches.delete(k)))
     }
+    // Clear browser storage to remove any persisted data
+    if ('localStorage' in window) {
+      localStorage.clear()
+    }
+    if ('sessionStorage' in window) {
+      sessionStorage.clear()
+    }
     window.location.href = 'https://www.google.com'
   }
 </script>
