@@ -71,6 +71,45 @@ def test_ttl_eviction(monkeypatch):
   asyncio.run(_run())
 
 
+def test_rate_limiter_failure_returns_503():
+  async def _run():
+    class FailingLimiter:
+      async def record_request(self, *args, **kwargs):
+        raise RuntimeError('down')
+
+      async def clear(self):
+        pass
+
+    app = create_app(FailingLimiter())
+    async with httpx.AsyncClient(
+      transport=httpx.ASGITransport(app=app, client=('1.1.1.1', 0)),
+      base_url='http://testserver'
+    ) as client:
+      resp = await client.get('/health')
+    assert resp.status_code == 503
+
+  asyncio.run(_run())
+
+
+def test_downstream_failure_returns_503():
+  async def _run():
+    limiter = InMemoryRateLimiter(100, 60, 300, 100)
+    app = create_app(limiter)
+
+    @app.get('/boom')
+    async def boom():
+      raise RuntimeError('fail')
+
+    async with httpx.AsyncClient(
+      transport=httpx.ASGITransport(app=app, client=('1.1.1.1', 0)),
+      base_url='http://testserver'
+    ) as client:
+      resp = await client.get('/boom')
+    assert resp.status_code == 503
+
+  asyncio.run(_run())
+
+
 def test_lru_eviction(monkeypatch):
   async def _run():
     limiter = InMemoryRateLimiter(100, 60, 100, 2)
