@@ -1,8 +1,12 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ['./src/**/*.{html,js,svelte,ts}'],
+  content: ['./src/**/*.{svelte,ts,js}'],
   theme: {
-    extend: {},
+    extend: {
+      colors: { primary: 'var(--color-primary)' },
+      borderRadius: { md: 'var(--radius-md)', lg: 'var(--radius-lg)' },
+      boxShadow: { card: 'var(--shadow-sm)' }
+    }
   },
-  plugins: [],
+  plugins: [require('@tailwindcss/forms'), require('@tailwindcss/typography')]
 }
