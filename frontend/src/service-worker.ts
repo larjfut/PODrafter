@@ -1,4 +1,5 @@
 const STATIC_CACHE = 'static-v1'
+const ALLOWED_TYPES = ['text/css', 'application/javascript', 'image/']
 
 self.addEventListener('install', (event) => {
   self.skipWaiting()
@@ -29,8 +30,7 @@ self.addEventListener('fetch', (event) => {
       if (cached) return cached
       const response = await fetch(event.request)
       const type = response.headers.get('Content-Type') || ''
-      const allowed = ['text/css', 'application/javascript', 'image/']
-      if (response.status === 200 && allowed.some((t) => type.startsWith(t))) {
+      if (response.status === 200 && ALLOWED_TYPES.some((t) => type.startsWith(t))) {
         cache.put(event.request, response.clone())
       }
       return response

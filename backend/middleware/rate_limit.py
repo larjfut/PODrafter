@@ -6,7 +6,7 @@ from functools import wraps
 from typing import Dict, Protocol, Tuple
 
 import redis.asyncio as redis
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import Request
 
@@ -154,10 +154,12 @@ def rate_limit(limit: int, window: int, key: str | None = None):
       allowed, store, remaining = await limiter.record_request(composite, time.time())
       if not allowed:
         return JSONResponse(status_code=429, content={"detail": "Too many requests"})
-      response = await func(*args, **kwargs)
-      response.headers["X-RateLimit-Store"] = store
-      response.headers["X-Route-RateLimit-Remaining"] = str(remaining)
-      return response
+      result = await func(*args, **kwargs)
+      if not isinstance(result, Response):
+        result = JSONResponse(result)
+      result.headers["X-RateLimit-Store"] = store
+      result.headers["X-Route-RateLimit-Remaining"] = str(remaining)
+      return result
 
     return wrapper
 
