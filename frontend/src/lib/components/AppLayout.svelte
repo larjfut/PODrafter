@@ -10,6 +10,7 @@
   import { WIZARD_STEPS } from '$lib/constants'
   import { generatePDF, canProceedToReview } from '$lib/utils'
   import { get } from 'svelte/store'
+  import type { WizardStep } from '$lib/types'
 
   let ChatArea: typeof import('./ChatArea.svelte').default | null = null
   let ProgressSidebar: typeof import('./ProgressSidebar.svelte').default | null = null
@@ -17,7 +18,15 @@
 
   let revokePdf: (() => void) | null = null
 
+  const STEP_INSTRUCTIONS: Record<WizardStep, string> = {
+    chat: 'Share your story to get started.',
+    review: 'Review the details and make any edits.',
+    generate: 'Generate your petition document.',
+    download: 'Download your completed petition.'
+  }
+
   $: canReview = canProceedToReview($petitionData)
+  $: activeStep = WIZARD_STEPS.find(({ step }) => step === $appState.currentStep)
 
   $: if ($appState.currentStep === 'chat' && (!ChatArea || !ProgressSidebar)) {
     Promise.all([
@@ -108,6 +117,13 @@
     </span>
   {/each}
 </nav>
+
+  <h2 class="text-lg font-semibold mb-1">
+    {activeStep?.title}
+  </h2>
+  <p class="mb-4 text-gray-600">
+    {STEP_INSTRUCTIONS[$appState.currentStep]}
+  </p>
 
   {#if $appState.currentStep === 'chat'}
     <div class="md:flex gap-4">
