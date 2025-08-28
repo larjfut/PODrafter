@@ -28,7 +28,11 @@ self.addEventListener('fetch', (event) => {
       const cached = await cache.match(event.request)
       if (cached) return cached
       const response = await fetch(event.request)
-      cache.put(event.request, response.clone())
+      const type = response.headers.get('Content-Type') || ''
+      const allowed = ['text/css', 'application/javascript', 'image/']
+      if (response.status === 200 && allowed.some((t) => type.startsWith(t))) {
+        cache.put(event.request, response.clone())
+      }
       return response
     }),
   )

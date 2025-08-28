@@ -31,13 +31,19 @@ TEMPLATE_CHECKSUMS: dict[str, str] = {
 
 
 def verify_template_integrity(path: Path) -> None:
-  expected = TEMPLATE_CHECKSUMS.get(path.name)
+  resolved = path.resolve()
+  forms_root = FORMS_DIR.resolve()
+  if not resolved.is_relative_to(forms_root):
+    logger.warning("Template path traversal attempt", path=str(resolved))
+    raise HTTPException(status_code=400, detail="Invalid template path")
+
+  expected = TEMPLATE_CHECKSUMS.get(resolved.name)
   if not expected:
     return
-  with open(path, "rb") as f:
+  with open(resolved, "rb") as f:
     actual = hashlib.sha256(f.read()).hexdigest()
   if actual != expected:
-    logger.error("Template checksum mismatch", file=path.name)
+    logger.error("Template checksum mismatch", file=resolved.name)
     raise HTTPException(status_code=500, detail="Template integrity check failed")
 
 
@@ -48,4 +54,8 @@ def get_template_file(county: str) -> Path:
     "Travis": "travis.pdf",
     "General": "tx_general.pdf",
   }
-  return FORMS_DIR / template_map.get(county, "tx_general.pdf")
+  candidate = (FORMS_DIR / template_map.get(county, "tx_general.pdf")).resolve()
+  if not candidate.is_relative_to(FORMS_DIR.resolve()):
+    logger.warning("Template path traversal attempt", path=str(candidate))
+    raise HTTPException(status_code=400, detail="Invalid template path")
+  return candidate
