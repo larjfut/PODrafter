@@ -10,6 +10,7 @@
   import { WIZARD_STEPS } from '$lib/constants'
   import { generatePDF, canProceedToReview } from '$lib/utils'
   import { get } from 'svelte/store'
+  import { InformationCircleIcon } from '@heroicons/svelte/24/outline'
   import type { WizardStep } from '$lib/types'
 
   let ChatArea: typeof import('./ChatArea.svelte').default | null = null
@@ -96,12 +97,23 @@
   }
 </script>
 
-<button
-  on:click={quickEscape}
-  class="fixed top-2 right-2 z-50 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded shadow-lg focus:outline-none focus:ring-2 focus:ring-red-800"
->
-  Quick Escape
-</button>
+<div class="fixed top-2 right-2 z-50 flex items-center">
+  <button
+    on:click={quickEscape}
+    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded shadow-lg focus:outline-none focus:ring-2 focus:ring-red-800"
+  >
+    Quick Escape
+  </button>
+  <span
+    class="ml-2"
+    title="Instantly clears data and redirects to a safe site."
+  >
+    <InformationCircleIcon
+      class="h-5 w-5 text-red-600"
+      aria-label="This button instantly clears data and redirects to a safe site."
+    />
+  </span>
+</div>
 
 <div class="mx-auto p-4 max-w-4xl">
   {#if $appState.error}
