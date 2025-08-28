@@ -1,9 +1,11 @@
 import asyncio
 from typing import Any, Awaitable, Callable
 
+from fastapi import HTTPException
+
 class WorkerQueue:
-  def __init__(self) -> None:
-    self._queue: asyncio.Queue[tuple[Callable[..., Awaitable[Any]], tuple, dict, asyncio.Future]] = asyncio.Queue()
+  def __init__(self, maxsize: int = 100) -> None:
+    self._queue: asyncio.Queue[tuple[Callable[..., Awaitable[Any]], tuple, dict, asyncio.Future]] = asyncio.Queue(maxsize=maxsize)
     self._worker_started = False
 
   async def _start_worker(self) -> None:
@@ -25,7 +27,10 @@ class WorkerQueue:
     await self._start_worker()
     loop = asyncio.get_running_loop()
     future: asyncio.Future = loop.create_future()
-    await self._queue.put((func, args, kwargs, future))
+    try:
+      self._queue.put_nowait((func, args, kwargs, future))
+    except asyncio.QueueFull as exc:
+      raise HTTPException(status_code=503, detail="Queue full") from exc
     return future
 
 queue = WorkerQueue()
