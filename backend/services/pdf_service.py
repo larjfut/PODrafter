@@ -15,10 +15,11 @@ def _generate_pdf_sync(data: dict) -> io.BytesIO:
     raise HTTPException(status_code=404, detail="Template not found")
   verify_template_integrity(template_file)
 
-  reader = PdfReader(str(template_file))
-  writer = PdfWriter()
-  for page in reader.pages:
-    writer.add_page(page)
+  with open(template_file, "rb") as f:
+    reader = PdfReader(f)
+    writer = PdfWriter()
+    for page in reader.pages:
+      writer.add_page(page)
 
   form_values: dict[str, str] = {}
   for key, field in FIELD_MAP.items():
