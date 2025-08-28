@@ -298,3 +298,43 @@ def test_route_specific_rate_limit(monkeypatch):
 
   asyncio.run(_run())
 
+
+def test_rate_limit_wraps_dict_response(monkeypatch):
+  async def _run():
+    class DummyRedis:
+      async def zremrangebyscore(self, *args, **kwargs):
+        raise RuntimeError('down')
+
+      async def zcard(self, *args, **kwargs):
+        raise RuntimeError('down')
+
+      async def zadd(self, *args, **kwargs):
+        raise RuntimeError('down')
+
+      async def expire(self, *args, **kwargs):
+        raise RuntimeError('down')
+
+      async def ping(self, *args, **kwargs):
+        raise RuntimeError('down')
+
+    monkeypatch.setattr('backend.middleware.rate_limit.redis_client', DummyRedis())
+
+    limiter = InMemoryRateLimiter(100, 60, 300, 100)
+    app = create_app(limiter)
+
+    @app.get('/limited-dict')
+    @rate_limit(limit=1, window=60, key='limited')
+    async def limited_endpoint(request: Request):
+      return {'ok': True}
+
+    async with httpx.AsyncClient(
+      transport=httpx.ASGITransport(app=app, client=('1.1.1.1', 0)),
+      base_url='http://testserver'
+    ) as client:
+      resp = await client.get('/limited-dict')
+    assert resp.status_code == 200
+    assert resp.headers['X-Route-RateLimit-Remaining'] == '0'
+    assert resp.json() == {'ok': True}
+
+  asyncio.run(_run())
+
