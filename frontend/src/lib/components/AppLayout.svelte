@@ -11,6 +11,8 @@
   import { generatePDF, canProceedToReview } from '$lib/utils'
   import { get } from 'svelte/store'
   import type { WizardStep } from '$lib/types'
+  import Tooltip from './ui/Tooltip.svelte'
+  import { InformationCircleIcon } from '@heroicons/svelte/24/outline'
 
   let ChatArea: typeof import('./ChatArea.svelte').default | null = null
   let ProgressSidebar: typeof import('./ProgressSidebar.svelte').default | null = null
@@ -102,6 +104,13 @@
 >
   Quick Escape
 </button>
+
+<Tooltip content="Immediately clears data and redirects to a safe site.">
+  <InformationCircleIcon
+    aria-label="Information about quick escape"
+    class="fixed top-2 right-28 z-50 h-6 w-6 text-gray-500"
+  />
+</Tooltip>
 
 <div class="mx-auto p-4 max-w-4xl">
   {#if $appState.error}
