@@ -81,6 +81,10 @@
   }
 </script>
 
+<p class="mb-2 p-2 text-xs text-gray-600 bg-gray-50 rounded">
+  For your privacy, avoid sharing personal details. Try prompts like "I need
+  help filing in Travis County" or "What goes in the petition?"
+</p>
 <div
   class="chat-area mb-4 h-64 overflow-y-auto border p-2 rounded"
   bind:this={chatContainer}
@@ -105,12 +109,20 @@
   {/each}
 </div>
 <form on:submit|preventDefault={handleSend} class="flex">
-  <input
-    class="flex-grow border p-2 rounded-l"
-    bind:value={userInput}
-    placeholder="Type your message..."
-    disabled={$appState.isLoading}
-  />
+  <div class="relative flex-grow">
+    <input
+      class="w-full border p-2 rounded-l pr-8"
+      bind:value={userInput}
+      placeholder="Type your message..."
+      disabled={$appState.isLoading}
+    />
+    <span
+      class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 cursor-help"
+      title="Avoid sharing personal or sensitive information"
+      aria-label="Privacy reminder"
+      >&#9432;</span
+    >
+  </div>
   <button
     type="submit"
     class="bg-blue-500 text-white px-4 rounded-r disabled:opacity-50"
