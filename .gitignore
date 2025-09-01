@@ -13,8 +13,6 @@ __pycache__/
 node_modules/
 .svelte-kit/
 build/
-pnpm-lock.yaml
-package-lock.json
 
 # Secrets
 .env*
