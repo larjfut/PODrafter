@@ -3,19 +3,18 @@
   export let zip = ''
   let county: string | null = null
 
-  const prefixMap: Record<string, string> = {
-    '752': 'Dallas County',
-    '750': 'Dallas County',
-    '751': 'Dallas County',
-    '770': 'Harris County',
-    '773': 'Harris County',
-    '774': 'Harris County',
-    '787': 'Travis County',
-    '786': 'Travis County',
-    '782': 'Bexar County',
-    '781': 'Bexar County',
-    '761': 'Tarrant County',
-    '760': 'Tarrant County',
+  let prefixMap: Record<string, string> = {}
+  let loaded = false
+  async function ensureMap() {
+    if (loaded) return
+    try {
+      const mod = await import('$src/lib/tx-zip-prefix-counties.json')
+      prefixMap = mod.default as Record<string, string>
+    } catch {
+      prefixMap = {}
+    } finally {
+      loaded = true
+    }
   }
 
   $: county = suggest(zip)
@@ -24,6 +23,9 @@
     const digits = (z || '').trim()
     if (digits.length < 3) return null
     const pref = digits.slice(0, 3)
+    if (!loaded) {
+      ensureMap()
+    }
     return prefixMap[pref] || null
   }
 </script>

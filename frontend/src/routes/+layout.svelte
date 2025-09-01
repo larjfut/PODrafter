@@ -35,6 +35,15 @@
       document.documentElement.classList.toggle('stealth', !!safety.stealth)
       document.documentElement.classList.toggle('reduced-motion', !!safety.reducedMotion)
       document.documentElement.classList.toggle('reduce-effects', !!safety.reduceEffects)
+      // Decoy mode: neutral title and favicon
+      const link: HTMLLinkElement | null = document.querySelector('link[rel="icon"]')
+      if (safety.stealth) {
+        document.title = 'Forms Helper'
+        if (link) link.href = '/favicon-stealth.svg'
+      } else {
+        document.title = 'PO Drafter'
+        if (link) link.href = '/favicon.svg'
+      }
     }
   }
 
@@ -81,7 +90,7 @@
 
 <header class="app-header">
   <nav class="container mx-auto p-3 flex items-center justify-between gap-3">
-    <a href="/" class="font-semibold text-lg">PO Drafter</a>
+    <a href="/" class="font-semibold text-lg">{safety?.stealth ? 'Forms Helper' : 'PO Drafter'}</a>
     <div class="flex items-center gap-3">
       <a href="/welcome" class="text-blue-600 underline">Safety</a>
       <button class="quick-escape" on:click|preventDefault={quickEscape} aria-label="Quick Escape">Quick Escape</button>
