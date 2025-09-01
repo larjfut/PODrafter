@@ -22,6 +22,14 @@
     { title: 'Toggle Reduce Effects', action: () => onSafetyChange(new CustomEvent('change', { detail: { ...safety, reduceEffects: !safety.reduceEffects } })) },
   ]
 
+  const cmdItems2 = [
+    ...cmdItems,
+    { title: 'Evidence Locker', href: '/private/locker', keywords: ['private','journal','notes'] },
+    { title: 'Quick Escape', action: () => quickEscape(), keywords: ['exit','leave'] },
+    { title: 'Clear my data', action: () => { try { clearDraft(); localStorage.clear() } catch {} }, keywords: ['clear','reset'] },
+    { title: 'Support resources', href: '/welcome#resources', keywords: ['help','hotline','support'] },
+  ]
+
   function applyStealth() {
     if (typeof document !== 'undefined') {
       document.documentElement.classList.toggle('stealth', !!safety.stealth)
@@ -52,6 +60,14 @@
   }
 
   onMount(async () => {
+    let lastEsc = 0
+    const onKey = (e: KeyboardEvent) => {
+      if (e.altKey && (e.key === 'q' || e.key === 'Q')) { e.preventDefault(); quickEscape(); return }
+      if (e.key === 'Escape') {
+        const now = Date.now(); if (now - lastEsc < 600) { quickEscape(); lastEsc = 0 } else { lastEsc = now }
+      }
+    }
+    window.addEventListener('keydown', onKey)
     applyStealth()
     try {
       const baseUrl = sanitizeBaseUrl(import.meta.env.VITE_API_BASE_URL || '/api')
@@ -59,6 +75,7 @@
     } catch (e) {
       console.warn('Failed to issue session', e)
     }
+    return () => window.removeEventListener('keydown', onKey)
   })
 </script>
 
@@ -82,4 +99,4 @@
   <div class="sr-only" aria-live="polite" aria-atomic="true"></div>
 </main>
 
-<CommandMenu items={cmdItems} bind:open={cmdOpen} />
+<CommandMenu items={cmdItems2} bind:open={cmdOpen} />
