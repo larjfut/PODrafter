@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import './styles/tokens.css';
+
+/* Global styles and accessibility utilities */
+
+/* Visually hidden but accessible to screen readers */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+/* Stealth theme */
+:root.stealth, .stealth body, .stealth main, .stealth .container {
+  color-scheme: light;
+  --bg: #f5f5f5;
+  --fg: #222;
+  --muted: #666;
+}
+.stealth body {
+  background: var(--bg) !important;
+  color: var(--fg) !important;
+}
+.stealth a { color: #0645ad !important; }
+.stealth-banner { background:#e2e8f0; color:#111; padding:.25rem .75rem; font-size:.85rem; text-align:center; }
+.app-header .quick-escape { background:#111; color:#fff; padding:.4rem .6rem; border-radius:.25rem; }
+
+/* Reduced motion */
+.reduced-motion * { transition: none !important; animation: none !important; }
+
+/* Reduce Effects mode (broader than reduced motion) */
+.reduce-effects *, .reduce-effects *::before, .reduce-effects *::after {
+  --glass-blur: 0px !important;
+  --specular-opacity: 0 !important;
+  --grain-opacity: 0 !important;
+  --ambient-sweep: none !important;
+  --sheen: none !important;
+  animation: none !important;
+  transition-duration: 0ms !important;
+}
+
+/* Tooltip helpers */
+.help { cursor: help; color: #4a5568; border-bottom: 1px dotted #cbd5e0; }
+
+/* Step indicator */
+.steps { display:flex; gap:.5rem; align-items:center; margin:.5rem 0 1rem; }
+.steps .step { height:6px; flex:1; background:#e5e7eb; border-radius:3px; }
+.steps .step.active { background:#60a5fa; }
+
+/* Print styles */
+@media print {
+  header, nav, .app-header, .stealth-banner, .steps, .no-print { display: none !important; }
+  a::after { content: " (" attr(href) ")"; font-size: 0.9em; }
+  body { background: #fff !important; color: #000 !important; }
+  main { margin: 0; padding: 0.5in; }
+}
+
+/* Typography */
+h1, h2, h3 { color: theme('colors.purple.deep'); font-weight: 700; }
+h1 { font-size: clamp(28px, 3vw, 28px); line-height: 34px; }
+h2 { font-size: clamp(22px, 2.5vw, 22px); line-height: 28px; }
+h3 { font-size: clamp(18px, 2vw, 18px); line-height: 24px; }
+body { color: theme('colors.ink'); }
+.muted { color: theme('colors.muted-ink'); }
+
+/* Glass card helpers */
+.glass {
+  background: color-mix(in oklab, white 65%, transparent);
+  border: 1px solid color-mix(in oklab, white 70%, black 10%);
+  backdrop-filter: blur(var(--glass-blur, 10px));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 10px));
+  border-radius: theme('borderRadius.card');
+  box-shadow: theme('boxShadow.e3');
+  position: relative;
+  overflow: clip;
+}
+.glass::before {
+  content: '';
+  position: absolute; inset: -20% -40% auto -40%; height: 60%;
+  background: linear-gradient(120deg, rgba(255,255,255,var(--specular-opacity,0.35)) 0%, rgba(255,255,255,0) 60%);
+  transform: rotate(8deg);
+  pointer-events: none;
+}
+.glass::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(0,0,0,0.06) 1px, transparent 1px);
+  background-size: 3px 3px;
+  opacity: var(--grain-opacity, 0.15);
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+
+/* Primary CTA ambient sweep */
+.ambient-sweep {
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0) 100%);
+  background-size: 200% 100%;
+  animation: var(--ambient-sweep, sweep 12s ease-in-out infinite);
+}
