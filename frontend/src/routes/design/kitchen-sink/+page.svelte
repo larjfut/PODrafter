@@ -57,6 +57,31 @@
   </div>
 
   <div>
+    <h2 class="mb-2">Data Viz Demo</h2>
+    <div class="grid gap-4 md:grid-cols-2">
+      <Card>
+        <h3 class="mb-2">Series</h3>
+        <div class="space-y-2">
+          <div class="h-3 w-3/4 dv-pos pattern-diag rounded-pill" aria-label="Positive series"></div>
+          <div class="h-3 w-2/5 dv-neg pattern-cross rounded-pill" aria-label="Negative series"></div>
+          <div class="h-3 w-1/2 dv-neutral pattern-dots rounded-pill" aria-label="Neutral series"></div>
+        </div>
+        <div class="mt-3 text-xs dv-callout">Deep Purple callout label</div>
+      </Card>
+      <Card>
+        <h3 class="mb-2">Axis & Callout</h3>
+        <div class="flex items-center gap-4 text-sm">
+          <span class="dv-axis-tick">0</span>
+          <span class="dv-axis-tick">10</span>
+          <span class="dv-axis-tick">20</span>
+          <span class="dv-axis-tick">30</span>
+        </div>
+        <div class="mt-3 dv-plate inline-block">Over-image text on blur plate</div>
+      </Card>
+    </div>
+  </div>
+
+  <div>
     <h2 class="mb-2">Command Menu</h2>
     <p class="muted mb-2">Press ⌘/Ctrl+K</p>
     <Button variant="secondary" on:click={() => (cmdOpen = true)}>Open Command Menu</Button>

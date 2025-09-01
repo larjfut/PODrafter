@@ -1,0 +1,46 @@
+/* Data Viz helpers: ticks, negatives, patterns, callouts */
+:root {
+  --dv-positive: var(--mint-deep);
+  --dv-negative: var(--brick);
+  --dv-neutral: var(--slate);
+  --dv-callout: var(--purple-deep);
+  --dv-tick: #E3B23C; /* Soft Gold */
+}
+
+.dv-axis-tick { color: var(--dv-tick); stroke: var(--dv-tick); }
+.dv-neg { color: var(--dv-negative); background-color: var(--dv-negative); }
+.dv-pos { color: var(--dv-positive); background-color: var(--dv-positive); }
+.dv-neutral { color: var(--dv-neutral); background-color: var(--dv-neutral); }
+.dv-callout { color: var(--dv-callout); }
+
+/* Pattern fills for CVD - apply as background to bars/areas */
+.pattern-diag {
+  background-image: repeating-linear-gradient( 45deg, currentColor 0, currentColor 2px, transparent 2px, transparent 6px );
+  background-blend-mode: multiply;
+}
+.pattern-cross {
+  background-image: linear-gradient(45deg, currentColor 1px, transparent 1px),
+    linear-gradient(-45deg, currentColor 1px, transparent 1px);
+  background-size: 6px 6px;
+  background-blend-mode: multiply;
+}
+.pattern-dots {
+  background-image: radial-gradient(currentColor 1px, transparent 1px);
+  background-size: 6px 6px;
+  background-blend-mode: multiply;
+}
+
+/* Blur plates for over-image labels */
+.dv-plate {
+  background: color-mix(in oklab, white 65%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 10px;
+  border: 1px solid color-mix(in oklab, white 70%, black 10%);
+  padding: .25rem .5rem;
+}
+
+.reduce-effects .dv-plate {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}

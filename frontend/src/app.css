@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 @import './styles/tokens.css';
+@import './styles/dataviz.css';
 
 /* Global styles and accessibility utilities */
 
