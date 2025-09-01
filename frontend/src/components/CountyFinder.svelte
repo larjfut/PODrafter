@@ -4,12 +4,17 @@
   let county: string | null = null
 
   let prefixMap: Record<string, string> = {}
+  let zipMap: Record<string, string> = {}
   let loaded = false
   async function ensureMap() {
     if (loaded) return
     try {
-      const mod = await import('$src/lib/tx-zip-prefix-counties.json')
-      prefixMap = mod.default as Record<string, string>
+      const [pref, full] = await Promise.all([
+        import('$src/lib/tx-zip-prefix-counties.json'),
+        import('$src/lib/tx-zip-counties.json'),
+      ])
+      prefixMap = pref.default as Record<string, string>
+      zipMap = full.default as Record<string, string>
     } catch {
       prefixMap = {}
     } finally {
@@ -21,12 +26,13 @@
 
   function suggest(z: string): string | null {
     const digits = (z || '').trim()
-    if (digits.length < 3) return null
-    const pref = digits.slice(0, 3)
-    if (!loaded) {
-      ensureMap()
+    if (!loaded) ensureMap()
+    if (digits.length >= 5 && zipMap[digits]) return zipMap[digits]
+    if (digits.length >= 3) {
+      const pref = digits.slice(0, 3)
+      return prefixMap[pref] || null
     }
-    return prefixMap[pref] || null
+    return null
   }
 </script>
 
